@@ -1,0 +1,47 @@
+Clear
+
+Set DefaultBaseFrequency=50
+
+New Circuit.ChargingStation_Microgrid bus1=MainBus basekV=0.4 pu=1.0 phases=3
+
+! ==========================================================
+! Voltage source as system reference (slack bus)
+! Auto-created by New Circuit command (named "source").
+! In islanded microgrid mode, the Vsource power should be
+! close to zero when storage dispatch correctly balances
+! generation and load.
+! ==========================================================
+
+! ==========================================================
+! Line code definition
+! 0.4 kV underground LV cable (typical YJV-0.6/1kV parameters)
+! R=0.125 ohm/km, X=0.08 ohm/km
+! ==========================================================
+New LineCode.LV_Cable nphases=3 r1=0.01 x1=0.01 r0=0.01 x0=0.01 units=km
+
+! ==========================================================
+! PV branch (3000 kW rated)
+! ==========================================================
+New Line.PV_Line bus1=MainBus bus2=PV_Bus linecode=LV_Cable length=0.05 units=km
+New Generator.PV1 bus1=PV_Bus phases=3 kV=0.4 kW=0 model=1
+
+! ==========================================================
+! Wind branch (2000 kW rated)
+! ==========================================================
+New Line.Wind_Line bus1=MainBus bus2=Wind_Bus linecode=LV_Cable length=0.05 units=km
+New Generator.Wind1 bus1=Wind_Bus phases=3 kV=0.4 kW=0 model=1
+
+! ==========================================================
+! EV charger load branch (up to 14400 kW = 120 x 120 kW)
+! ==========================================================
+New Line.Load_Line bus1=MainBus bus2=Load_Bus linecode=LV_Cable length=0.05 units=km
+New Load.EVLoad bus1=Load_Bus phases=3 kV=0.4 kW=0 model=1
+
+! ==========================================================
+! Energy storage branch (3750 kW PCS, 7500 kWh capacity)
+! ==========================================================
+New Line.Storage_Line bus1=MainBus bus2=Storage_Bus linecode=LV_Cable length=0.05 units=km
+New Storage.Storage1 bus1=Storage_Bus phases=3 kV=0.4 kWrated=3750 kWhrated=7500 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 state=idling
+
+Set Voltagebases=[0.4]
+CalcVoltageBases

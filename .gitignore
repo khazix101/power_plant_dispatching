@@ -1,0 +1,29 @@
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Reference materials (not part of the deliverable)
+自留cg/
+
+# Simulation outputs (auto-generated)
+output/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Conda / venv
+.venv/
+venv/
+env/
