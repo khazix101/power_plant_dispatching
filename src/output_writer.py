@@ -1,8 +1,8 @@
 """
-Output writer for microgrid simulation results.
+微电网仿真结果输出写入器。
 
-Writes time-series simulation results to CSV files in the output directory,
-including power balance, bus voltages, storage state, and summary statistics.
+将时序仿真结果写入 output 目录的 CSV 文件，
+包括功率平衡、母线电压、储能状态和汇总统计。
 """
 
 import pandas as pd
@@ -20,18 +20,17 @@ OUTPUT_COLUMNS = [
 
 def save_results(results, output_dir="output", init_soc=None):
     """
-    Save simulation results to CSV files.
+    将仿真结果保存到 CSV 文件。
 
     Args:
-        results: List of dicts, one per time step, with keys matching
-                 OUTPUT_COLUMNS
-        output_dir: Path to output directory
-        init_soc: Initial SOC before first time step (optional)
+        results: 字典列表，每个时间步长一个字典，键与 OUTPUT_COLUMNS 对应
+        output_dir: 输出目录路径
+        init_soc: 首个时间步长前的初始 SoC (可选)
 
-    Generates:
-        output/power_balance.csv  - full time-series
-        output/storage_state.csv  - storage SOC and power
-        output/summary.csv        - aggregated statistics
+    生成文件:
+        output/power_balance.csv  - 完整时序数据
+        output/storage_state.csv  - 储能 SoC 及功率
+        output/summary.csv        - 汇总统计
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -42,7 +41,7 @@ def save_results(results, output_dir="output", init_soc=None):
     _save_storage_state(df, output_path)
     _save_summary(df, output_path, init_soc)
 
-    logger.info(f"Results saved to: {output_path}")
+    logger.info(f"结果已保存至: {output_path}")
 
 
 def _save_power_balance(df, output_path):
@@ -70,14 +69,14 @@ def _save_summary(df, output_path, init_soc=None):
         init_soc = df["soc_pct"].iloc[0] if "soc_pct" in df.columns and len(df) > 0 else 0
 
     summary = pd.DataFrame([
-        {"metric": "Total PV generation (kWh)", "value": f"{total_pv:.2f}"},
-        {"metric": "Total Wind generation (kWh)", "value": f"{total_wind:.2f}"},
-        {"metric": "Total Load consumption (kWh)", "value": f"{total_load:.2f}"},
-        {"metric": "Total Line losses (kWh)", "value": f"{total_losses:.2f}"},
-        {"metric": "Initial storage SOC (%)", "value": f"{init_soc:.2f}"},
-        {"metric": "Final storage SOC (%)", "value": f"{soc_final:.2f}"},
-        {"metric": "SOC change (%)", "value": f"{soc_final - init_soc:.2f}"},
-        {"metric": "Load cap violations (>14400 kW)", "value": str(int(
+        {"metric": "光伏总发电量 (kWh)", "value": f"{total_pv:.2f}"},
+        {"metric": "风电总发电量 (kWh)", "value": f"{total_wind:.2f}"},
+        {"metric": "总负荷消耗 (kWh)", "value": f"{total_load:.2f}"},
+        {"metric": "线路总损耗 (kWh)", "value": f"{total_losses:.2f}"},
+        {"metric": "储能初始 SoC (%)", "value": f"{init_soc:.2f}"},
+        {"metric": "储能最终 SoC (%)", "value": f"{soc_final:.2f}"},
+        {"metric": "SoC 变化量 (%)", "value": f"{soc_final - init_soc:.2f}"},
+        {"metric": "负荷超限次数 (>14400 kW)", "value": str(int(
             (df["load_kW"] > 14400).sum() if "load_kW" in df.columns else 0
         ))},
     ])

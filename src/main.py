@@ -1,13 +1,13 @@
 """
-Main simulation entry point for the charging station microgrid digital twin.
+充电站微电网数字孪生仿真主入口。
 
-Orchestrates the full digital twin workflow:
-    1. Load prediction data (A.csv, B.csv, C.csv) from data/
-    2. Compile OpenDSS microgrid model
-    3. Run 24-hour time-series simulation with storage dispatch
-    4. Save results to output/
+协调完整的数字孪生工作流：
+    1. 从 data/ 加载预测数据 (A.csv, B.csv, C.csv)
+    2. 编译 OpenDSS 微电网模型
+    3. 运行 24 小时时序仿真，含储能调度
+    4. 将结果保存到 output/
 
-Usage:
+用法：
     python src/main.py [--data data/] [--model model/master.dss]
                        [--output output/] [--strategy simple_balancing]
                        [--init-soc 50] [--diagram]
@@ -18,7 +18,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Ensure src/ is on the Python path for internal imports
+# 确保 src/ 在 Python 路径中，以便内部导入
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -34,32 +34,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
-# Microgrid rated parameters
+# 微电网额定参数
 PV_RATED_KW = 3000.0
 WIND_RATED_KW = 2000.0
-LOAD_MAX_KW = 14400.0   # 120 x 120 kW
-STORAGE_KW = 3750.0     # PCS rated power
-STORAGE_KWH = 7500.0    # Energy capacity
+LOAD_MAX_KW = 14400.0   # 120台充电桩 x 120 kW
+STORAGE_KW = 3750.0     # 储能变流器额定功率
+STORAGE_KWH = 7500.0    # 储能容量
 BUS_KV = 0.4
 FREQ_HZ = 50
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Charging Station Microgrid Digital Twin Simulation"
+        description="充电站微电网数字孪生仿真"
     )
     parser.add_argument("--data", default=None,
-                        help="Directory containing A/B/C.csv prediction files")
+                        help="包含 A/B/C.csv 预测文件的目录")
     parser.add_argument("--model", default=None,
-                        help="Path to OpenDSS master file")
+                        help="OpenDSS 主文件路径")
     parser.add_argument("--output", default=None,
-                        help="Directory for simulation results")
+                        help="仿真结果输出目录")
     parser.add_argument("--strategy", default="simple_balancing",
-                        help="Storage dispatch strategy name")
+                        help="储能调度策略名称")
     parser.add_argument("--init-soc", type=float, default=50.0,
-                        help="Initial storage SOC percentage (default: 50)")
+                        help="初始储能 SoC 百分比 (默认: 50)")
     parser.add_argument("--diagram", action="store_true",
-                        help="Generate architecture topology diagram")
+                        help="生成架构拓扑示意图")
     return parser.parse_args()
 
 
@@ -71,22 +71,22 @@ def main():
     output_dir = args.output or str(_PROJECT_ROOT / "output")
 
     logger.info("=" * 60)
-    logger.info("Charging Station Microgrid Digital Twin Simulation")
+    logger.info("充电站微电网数字孪生仿真")
     logger.info("=" * 60)
 
-    logger.info("Step 1: Loading prediction data...")
+    logger.info("步骤 1: 加载预测数据...")
     wind_df, pv_df, load_df = load_data(data_dir)
 
-    logger.info("Step 2: Building OpenDSS model...")
+    logger.info("步骤 2: 构建 OpenDSS 模型...")
     model = MicrogridModel(base_kv=BUS_KV, base_freq=FREQ_HZ)
     model.compile(model_file)
 
-    logger.info("Step 3: Initializing storage strategy: %s", args.strategy)
+    logger.info("步骤 3: 初始化储能策略: %s", args.strategy)
     strategy = get_strategy(args.strategy)
     init_soc = max(10.0, min(90.0, args.init_soc))
     storage_soc = init_soc
 
-    logger.info("Step 4: Running 24-hour time-series simulation...")
+    logger.info("步骤 4: 运行 24 小时时序仿真...")
     results = []
 
     for i in range(24):
@@ -97,7 +97,7 @@ def main():
 
         if load_kw > LOAD_MAX_KW:
             logger.warning(
-                "Hour %d: load %.1f kW exceeds max %.1f kW, clamping",
+                "第 %d 小时: 负荷 %.1f kW 超过最大值 %.1f kW, 已限幅",
                 hour, load_kw, LOAD_MAX_KW
             )
             load_kw = LOAD_MAX_KW
@@ -134,34 +134,34 @@ def main():
         })
 
         logger.info(
-            "Hour %2d | PV=%6.1f Wind=%6.1f Load=%6.1f | "
-            "Stor=%7.1f SOC=%5.1f%% | Vbus=%5.3f pu | Src=%6.2f kW",
+            "第 %2d 小时 | 光伏=%6.1f 风电=%6.1f 负荷=%6.1f | "
+            "储能=%7.1f SoC=%5.1f%% | 母线电压=%5.3f pu | 电源=%6.2f kW",
             hour, pv_kw, wind_kw, load_kw,
             storage_kw, storage_soc, bus_voltage, source_kw,
         )
 
-    logger.info("Step 5: Saving results...")
+    logger.info("步骤 5: 保存结果...")
     save_results(results, output_dir, init_soc)
 
-    logger.info("Step 6: Simulation summary...")
+    logger.info("步骤 6: 仿真汇总...")
     total_gen = sum(r["pv_kW"] + r["wind_kW"] for r in results)
     total_load = sum(r["load_kW"] for r in results)
     total_losses = sum(r["losses_kW"] for r in results)
     total_source = sum(abs(r["source_kW"]) for r in results)
-    logger.info("  Total generation (kWh):  %.1f", total_gen)
-    logger.info("  Total load (kWh):        %.1f", total_load)
-    logger.info("  Total losses (kWh):      %.3f", total_losses)
-    logger.info("  Total source exchange (kWh): %.3f", total_source)
-    logger.info("  Initial SOC:             %.1f %%", init_soc)
-    logger.info("  Final SOC:               %.1f %%", storage_soc)
+    logger.info("  总发电量 (kWh):  %.1f", total_gen)
+    logger.info("  总负荷 (kWh):    %.1f", total_load)
+    logger.info("  总损耗 (kWh):    %.3f", total_losses)
+    logger.info("  总电源交换 (kWh): %.3f", total_source)
+    logger.info("  初始 SoC:        %.1f %%", init_soc)
+    logger.info("  最终 SoC:        %.1f %%", storage_soc)
 
     if args.diagram:
-        logger.info("Step 7: Generating architecture diagram...")
+        logger.info("步骤 7: 生成架构拓扑示意图...")
         from src.diagram import generate_diagram
         generate_diagram(output_dir)
 
     logger.info("=" * 60)
-    logger.info("Simulation complete. Results saved to: %s", output_dir)
+    logger.info("仿真完成。结果已保存至: %s", output_dir)
     logger.info("=" * 60)
 
 

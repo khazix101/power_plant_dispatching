@@ -1,9 +1,9 @@
 """
-OpenDSS microgrid model interface using dss-python.
+基于 dss-python 的 OpenDSS 微电网模型接口。
 
-Provides methods to compile the DSS model, set component powers at each
-time step, solve power flow, and extract simulation results.
-Requires dss-python (pip install dss-python).
+提供编译 DSS 模型、设置各时间步长组件功率、求解潮流
+以及提取仿真结果的方法。
+需要 dss-python (pip install dss-python)。
 """
 
 import logging
@@ -17,16 +17,16 @@ try:
 except ImportError:
     HAS_OPENDSS = False
     DSS = None
-    logger.warning("dss-python not installed; only text file generation available")
+    logger.warning("dss-python 未安装; 仅支持生成文本文件")
 
 
 class MicrogridModel:
     """
-    Python interface to the OpenDSS microgrid model.
+    OpenDSS 微电网模型的 Python 接口。
 
-    Controls the time-series simulation loop in snapshot mode:
-    at each hour, sets PV/wind/load/storage power, solves power flow,
-    and extracts bus voltages and component powers.
+    以快照模式控制时序仿真循环:
+    每小时内设置光伏/风电/负荷/储能功率，求解潮流，
+    并提取母线电压和各组件功率。
     """
 
     def __init__(self, base_kv=0.4, base_freq=50):
@@ -40,37 +40,36 @@ class MicrogridModel:
 
     def compile(self, dss_file="model/master.dss"):
         """
-        Compile the OpenDSS model from a master DSS file.
+        从主 DSS 文件编译 OpenDSS 模型。
 
         Args:
-            dss_file: Path to the master DSS file
+            dss_file: 主 DSS 文件路径
 
         Raises:
-            RuntimeError: If dss-python is not installed or
-                          compilation fails
+            RuntimeError: 若 dss-python 未安装或编译失败
         """
         if not HAS_OPENDSS:
             raise RuntimeError(
-                "dss-python is required. Install with:\n"
+                "需要安装 dss-python。请执行:\n"
                 "  pip install dss-python"
             )
 
         dss_file_path = Path(dss_file)
         if not dss_file_path.exists():
-            raise FileNotFoundError(f"DSS model file not found: {dss_file_path}")
+            raise FileNotFoundError(f"DSS 模型文件未找到: {dss_file_path}")
 
         DSS.Text.Command = "Clear"
         DSS.Text.Command = f"Compile {dss_file_path}"
 
         if DSS.Error.Number == 0:
             self._compiled = True
-            logger.info(f"Model compiled successfully from: {dss_file_path}")
+            logger.info(f"模型编译成功: {dss_file_path}")
             self._set_snapshot_mode()
         else:
             err_msg = DSS.Error.Description
             raise RuntimeError(
-                f"Failed to compile model: {dss_file_path}\n"
-                f"DSS Error: {err_msg}"
+                f"模型编译失败: {dss_file_path}\n"
+                f"DSS 错误: {err_msg}"
             )
 
     def _set_snapshot_mode(self):
@@ -79,13 +78,13 @@ class MicrogridModel:
 
     def set_power(self, pv_kw, wind_kw, load_kw, storage_kw):
         """
-        Set all component powers for the current time step.
+        设置当前时间步长所有组件的功率。
 
         Args:
-            pv_kw: PV generation (kW)
-            wind_kw: Wind generation (kW)
-            load_kw: EV charger load (kW)
-            storage_kw: Storage power (kW, negative = charging)
+            pv_kw: 光伏发电 (kW)
+            wind_kw: 风电发电 (kW)
+            load_kw: 充电桩负荷 (kW)
+            storage_kw: 储能功率 (kW, 负值 = 充电)
         """
         DSS.Text.Command = f"Edit Generator.PV1 kW={pv_kw:.3f}"
         DSS.Text.Command = f"Edit Generator.Wind1 kW={wind_kw:.3f}"
@@ -94,19 +93,19 @@ class MicrogridModel:
 
     def solve(self):
         """
-        Solve the power flow for the current snapshot.
+        求解当前快照的潮流。
 
         Raises:
-            RuntimeError: If power flow does not converge
+            RuntimeError: 若潮流不收敛
         """
         DSS.ActiveCircuit.Solution.Solve()
         if not DSS.ActiveCircuit.Solution.Converged:
             raise RuntimeError(
-                "Power flow did not converge. Check component data and model."
+                "潮流未收敛。请检查组件数据及模型。"
             )
 
     def get_main_bus_voltage(self):
-        """Return MainBus voltage in per-unit."""
+        """返回主母线电压 (标幺值)。"""
         try:
             DSS.ActiveCircuit.SetActiveBus("MainBus")
             voltages = DSS.ActiveCircuit.ActiveBus.puVmagAngle
@@ -118,9 +117,8 @@ class MicrogridModel:
 
     def get_source_power_kw(self):
         """
-        Get Vsource (slack bus) power.
-        In islanded mode, this should be close to zero if storage
-        dispatch correctly balances the system.
+        获取 Vsource (平衡节点) 功率。
+        在孤岛模式下，若储能调度正确平衡系统，该值应接近于零。
         """
         try:
             DSS.ActiveCircuit.SetActiveElement("Vsource.source")
@@ -131,7 +129,7 @@ class MicrogridModel:
             return 0.0
 
     def get_line_losses_kw(self):
-        """Get total line losses across all branches (Losses is in Watts)."""
+        """获取所有支路的总线路损耗 (损耗单位为瓦特)。"""
         total = 0.0
         for line_name in ["Line.PV_Line", "Line.Wind_Line",
                           "Line.Load_Line", "Line.Storage_Line"]:
@@ -144,13 +142,13 @@ class MicrogridModel:
         return total
 
 
-# ---- Text-file generation (for inspection / fallback) ---- #
+# ---- 文本文件生成 (用于查看 / 备用) ---- #
 
 def generate_dss_text(base_kv=0.4):
     """
-    Generate the master DSS file text programmatically.
+    以编程方式生成主 DSS 文件文本内容。
 
-    Useful for inspection or when dss-python is not available.
+    适用于查看或 dss-python 不可用时的备选方案。
     """
     return f"""Clear
 
@@ -158,25 +156,25 @@ Set DefaultBaseFrequency=50
 
 New Circuit.ChargingStation_Microgrid bus1=MainBus basekV={base_kv} pu=1.0 phases=3
 
-! Voltage source as system reference (slack bus) - auto-created
-! by New Circuit command (named "source").
+! 电压源作为系统参考 (平衡节点) - 由 New Circuit 命令自动创建
+! (命名为 "source")。
 
-! Line code: 0.4 kV bus-level connection (low-impedance)
+! 线路参数: 0.4 kV 母线级连接 (低阻抗)
 New LineCode.LV_Cable nphases=3 r1=0.01 x1=0.01 r0=0.01 x0=0.01 units=km
 
-! PV branch (3000 kW rated)
+! 光伏支路 (额定 3000 kW)
 New Line.PV_Line bus1=MainBus bus2=PV_Bus linecode=LV_Cable length=0.05 units=km
 New Generator.PV1 bus1=PV_Bus phases=3 kV={base_kv} kW=0 model=1
 
-! Wind branch (2000 kW rated)
+! 风电支路 (额定 2000 kW)
 New Line.Wind_Line bus1=MainBus bus2=Wind_Bus linecode=LV_Cable length=0.05 units=km
 New Generator.Wind1 bus1=Wind_Bus phases=3 kV={base_kv} kW=0 model=1
 
-! EV charger load branch (max 14400 kW)
+! 充电桩负荷支路 (最大 14400 kW)
 New Line.Load_Line bus1=MainBus bus2=Load_Bus linecode=LV_Cable length=0.05 units=km
 New Load.EVLoad bus1=Load_Bus phases=3 kV={base_kv} kW=0 model=1
 
-! Energy storage branch (3750 kW PCS, 7500 kWh)
+! 储能支路 (变流器 3750 kW, 容量 7500 kWh)
 New Line.Storage_Line bus1=MainBus bus2=Storage_Bus linecode=LV_Cable length=0.05 units=km
 New Storage.Storage1 bus1=Storage_Bus phases=3 kV={base_kv} kWrated=3750 kWhrated=7500 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 state=idling
 

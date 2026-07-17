@@ -1,8 +1,8 @@
 """
-Generate microgrid architecture topology diagram.
+生成微电网架构拓扑示意图。
 
-Uses matplotlib to draw a block diagram of the islanded charging station
-microgrid, showing all components, connections, and rated parameters.
+使用 matplotlib 绘制孤岛充电站微电网的框图，
+展示所有组件、连接关系及额定参数。
 """
 
 import matplotlib
@@ -13,13 +13,13 @@ from pathlib import Path
 
 
 def generate_diagram(output_dir="output"):
-    """Generate and save the microgrid topology diagram."""
+    """生成并保存微电网拓扑示意图。"""
     fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 8)
     ax.axis("off")
     ax.set_title(
-        "Charging Station Microgrid Topology (0.4 kV Islanded)",
+        "充电站微电网拓扑 (0.4 kV 孤岛运行)",
         fontsize=16, fontweight="bold", pad=20
     )
 
@@ -36,104 +36,104 @@ def generate_diagram(output_dir="output"):
     filepath = output_path / "topology.png"
     fig.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"Topology diagram saved to: {filepath}")
+    print(f"拓扑示意图已保存至: {filepath}")
     return filepath
 
 
 def _draw_mainbus(ax):
-    """Draw the main 0.4 kV AC busbar."""
+    """绘制 0.4 kV 交流主母线。"""
     x, y = 7.0, 4.0
     ax.barh(y, 6, height=0.3, left=4, color="steelblue", edgecolor="black")
-    ax.text(x, y, "MainBus 0.4 kV AC", ha="center", va="center",
+    ax.text(x, y, "主母线 0.4 kV AC", ha="center", va="center",
             fontsize=11, fontweight="bold", color="white")
 
 
 def _draw_pv(ax):
-    """Draw the PV generation unit."""
+    """绘制光伏发电单元。"""
     x, y = 7.0, 6.2
     box = mpatches.FancyBboxPatch(
         (x - 1.0, y - 0.5), 2.0, 1.0,
         boxstyle="round,pad=0.1", facecolor="gold", edgecolor="black"
     )
     ax.add_patch(box)
-    ax.text(x, y, "PV System\n3000 kW", ha="center", va="center",
+    ax.text(x, y, "光伏系统\n3000 kW", ha="center", va="center",
             fontsize=9, fontweight="bold")
     ax.plot([x, x], [y - 0.5, 4.15], "k-", linewidth=1.5)
-    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "Line_PV\n(0.05 km)",
+    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "光伏线路\n(0.05 km)",
             fontsize=7, color="gray")
 
 
 def _draw_wind(ax):
-    """Draw the wind generation unit."""
+    """绘制风电发电单元。"""
     x, y = 4.0, 4.0
     box = mpatches.FancyBboxPatch(
         (x - 1.0, y - 0.5), 2.0, 1.0,
         boxstyle="round,pad=0.1", facecolor="lightblue", edgecolor="black"
     )
     ax.add_patch(box)
-    ax.text(x, y, "Wind Generator\n2000 kW", ha="center", va="center",
+    ax.text(x, y, "风电发电机\n2000 kW", ha="center", va="center",
             fontsize=9, fontweight="bold")
     ax.plot([x, x], [y - 0.5, 4.15], "k-", linewidth=1.5)
-    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "Line_Wind\n(0.05 km)",
+    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "风电线路\n(0.05 km)",
             fontsize=7, color="gray")
 
 
 def _draw_load(ax):
-    """Draw the EV charger load unit."""
+    """绘制充电桩负荷单元。"""
     x, y = 10.0, 4.0
     box = mpatches.FancyBboxPatch(
         (x - 1.0, y - 0.5), 2.0, 1.0,
         boxstyle="round,pad=0.1", facecolor="salmon", edgecolor="black"
     )
     ax.add_patch(box)
-    ax.text(x, y, "EV Chargers\n14.4 MW max", ha="center", va="center",
+    ax.text(x, y, "充电桩\n最大 14.4 MW", ha="center", va="center",
             fontsize=9, fontweight="bold")
     ax.plot([x, x], [y - 0.5, 4.15], "k-", linewidth=1.5)
-    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "Line_Load\n(0.05 km)",
+    ax.text(x + 0.1, (y - 0.5 + 4.15) / 2, "负荷线路\n(0.05 km)",
             fontsize=7, color="gray")
 
 
 def _draw_storage(ax):
-    """Draw the energy storage unit."""
+    """绘制储能单元。"""
     x, y = 3.0, 2.0
     box = mpatches.FancyBboxPatch(
         (x - 1.5, y - 0.5), 3.0, 1.5,
         boxstyle="round,pad=0.1", facecolor="mediumseagreen", edgecolor="black"
     )
     ax.add_patch(box)
-    ax.text(x, y + 0.2, "Energy Storage", ha="center", va="center",
+    ax.text(x, y + 0.2, "储能系统", ha="center", va="center",
             fontsize=10, fontweight="bold")
     ax.text(x, y - 0.35, "3750 kW | 7500 kWh", ha="center", va="center",
             fontsize=9)
     ax.plot([x, x], [y + 0.5, 3.85], "k-", linewidth=1.5)
     ax.plot([3.0, 3.0 + 0.2], [3.85, 3.85], "k-", linewidth=1.5)
-    ax.text(x + 0.3, (y + 0.5 + 3.85) / 2, "Line_Stor\n(0.05 km)",
+    ax.text(x + 0.3, (y + 0.5 + 3.85) / 2, "储能线路\n(0.05 km)",
             fontsize=7, color="gray")
 
 
 def _draw_source(ax):
-    """Draw the Vsource (slack bus reference)."""
+    """绘制 Vsource (平衡节点参考)。"""
     x, y = 11.0, 2.0
     box = mpatches.FancyBboxPatch(
         (x - 1.2, y - 0.4), 2.4, 0.8,
         boxstyle="round,pad=0.1", facecolor="lightgray", edgecolor="black"
     )
     ax.add_patch(box)
-    ax.text(x, y, "Vsource (Slack)\nVoltage Reference", ha="center",
+    ax.text(x, y, "电压源 (平衡节点)\n电压参考", ha="center",
             va="center", fontsize=8, fontweight="bold")
     ax.plot([x, x], [y + 0.4, 3.85], "k-", linewidth=1.5)
     ax.plot([11.0, 11.0 - 0.2], [3.85, 3.85], "k-", linewidth=1.5)
 
 
 def _draw_legend(ax):
-    """Draw the color legend."""
+    """绘制颜色图例。"""
     legend_items = [
-        mpatches.Patch(facecolor="gold", edgecolor="black", label="PV System"),
-        mpatches.Patch(facecolor="lightblue", edgecolor="black", label="Wind System"),
-        mpatches.Patch(facecolor="salmon", edgecolor="black", label="Load (EV Chargers)"),
-        mpatches.Patch(facecolor="mediumseagreen", edgecolor="black", label="Energy Storage"),
-        mpatches.Patch(facecolor="lightgray", edgecolor="black", label="Vsource (Slack)"),
-        mpatches.Patch(facecolor="steelblue", edgecolor="black", label="MainBus"),
+        mpatches.Patch(facecolor="gold", edgecolor="black", label="光伏系统"),
+        mpatches.Patch(facecolor="lightblue", edgecolor="black", label="风电系统"),
+        mpatches.Patch(facecolor="salmon", edgecolor="black", label="负荷 (充电桩)"),
+        mpatches.Patch(facecolor="mediumseagreen", edgecolor="black", label="储能系统"),
+        mpatches.Patch(facecolor="lightgray", edgecolor="black", label="电压源 (平衡节点)"),
+        mpatches.Patch(facecolor="steelblue", edgecolor="black", label="主母线"),
     ]
     ax.legend(handles=legend_items, loc="lower center",
               ncol=3, fontsize=8, framealpha=0.9,
@@ -142,4 +142,4 @@ def _draw_legend(ax):
 
 if __name__ == "__main__":
     generate_diagram("output")
-    print("Done.")
+    print("完成。")

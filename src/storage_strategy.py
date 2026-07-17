@@ -1,9 +1,9 @@
 """
-Energy storage dispatch strategies for the microgrid digital twin.
+微电网数字孪生储能调度策略。
 
-All strategies implement the same interface: compute() returns
-(desired_storage_kW, new_soc_pct) given generation, load, and current state.
-Positive storage_kW = discharging, negative = charging.
+所有策略实现统一接口: compute() 根据发电、负荷及当前状态
+返回 (期望储能功率_kW, 新SoC百分比)。
+储能功率为正 = 放电, 为负 = 充电。
 """
 
 from abc import ABC, abstractmethod
@@ -13,37 +13,37 @@ logger = logging.getLogger(__name__)
 
 
 class StorageStrategy(ABC):
-    """Abstract base class for storage dispatch strategies."""
+    """储能调度策略抽象基类。"""
 
     @abstractmethod
     def compute(self, pv_kw, wind_kw, load_kw, soc_pct,
                 rated_capacity_kwh, rated_power_kw, time_hour):
         """
-        Compute storage dispatch for one time step.
+        计算单个时间步长的储能调度。
 
         Args:
-            pv_kw: PV generation power (kW)
-            wind_kw: Wind generation power (kW)
-            load_kw: Load consumption power (kW)
-            soc_pct: Current state of charge (%)
-            rated_capacity_kwh: Storage rated capacity (kWh)
-            rated_power_kw: Storage rated PCS power (kW)
-            time_hour: Current hour of day (0-23)
+            pv_kw: 光伏发电功率 (kW)
+            wind_kw: 风电发电功率 (kW)
+            load_kw: 负荷消耗功率 (kW)
+            soc_pct: 当前荷电状态 (%)
+            rated_capacity_kwh: 储能额定容量 (kWh)
+            rated_power_kw: 储能变流器额定功率 (kW)
+            time_hour: 当前小时 (0-23)
 
         Returns:
-            tuple: (storage_kW, new_soc_pct)
-                storage_kW > 0: discharging, < 0: charging
+            tuple: (储能功率_kW, 新SoC百分比)
+                储能功率 > 0: 放电, < 0: 充电
         """
         pass
 
 
 class SimpleBalancing(StorageStrategy):
     """
-    Simple supply-demand balancing strategy.
+    简单供需平衡策略。
 
-    - When generation (PV + wind) > load: charge storage with excess
-    - When generation < load: discharge storage to cover deficit
-    - Respects SOC limits (soc_min / soc_max) and PCS power limit
+    - 当发电 (光伏 + 风电) > 负荷时: 用多余电力充电储能
+    - 当发电 < 负荷时: 储能放电以弥补缺口
+    - 遵循 SoC 上下限限制 (soc_min / soc_max) 及变流器功率限制
     """
 
     def __init__(self, soc_min=10.0, soc_max=90.0,
@@ -96,18 +96,18 @@ STRATEGY_REGISTRY = {
 
 def get_strategy(name="simple_balancing", **kwargs):
     """
-    Factory function to create a storage strategy instance.
+    创建储能策略实例的工厂函数。
 
     Args:
-        name: Strategy name (key in STRATEGY_REGISTRY)
-        **kwargs: Passed to strategy constructor
+        name: 策略名称 (STRATEGY_REGISTRY 中的键)
+        **kwargs: 传递给策略构造函数的参数
 
     Returns:
-        StorageStrategy instance
+        StorageStrategy 实例
     """
     if name not in STRATEGY_REGISTRY:
         available = list(STRATEGY_REGISTRY.keys())
         raise ValueError(
-            f"Unknown strategy '{name}'. Available: {available}"
+            f"未知策略 '{name}'。可用策略: {available}"
         )
     return STRATEGY_REGISTRY[name](**kwargs)
