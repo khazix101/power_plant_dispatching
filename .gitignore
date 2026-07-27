@@ -18,6 +18,12 @@ build/
 # Simulation outputs (auto-generated)
 output/
 
+# LaTeX artifacts
+*.log
+*.aux
+*.out
+*.toc
+
 # OS files
 .DS_Store
 Thumbs.db
