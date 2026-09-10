@@ -1,0 +1,315 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+\definecolor{lightgray}{RGB}{244,246,249}
+\definecolor{lightgreen}{RGB}{238,247,240}
+\definecolor{lightyellow}{RGB}{252,249,235}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 开题与创新点论证：离网高速充电站安全可行主从博弈}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.5cm}\textbf{\color{mainblue}离网高速充电站\\安全可行主从博弈均衡：开题与创新点论证}\\[6pt]
+\large 面向数据缺失场景的数字孪生—安全强化学习求解框架}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.94\textwidth}
+\small
+\textbf{摘要：}针对离网型高速公路服务区充电站与电动汽车用户的主从博弈优化调度问题，本课题提出并研究\textbf{“安全可行主从博弈均衡（Safe-Feasible Stackelberg Equilibrium, SFSE）”}这一新问题：在缺乏历史数据的条件下，利用数字孪生构建可交互环境，将离网物理硬约束（功率自平衡、SOC、母线安全）内嵌于博弈均衡的可行域，设计可快速求解的安全强化学习—优化混合算法，并给出均衡存在性、安全性与收敛性保证。本报告论证该问题相对于现有“并网假设 + 无约束博弈 + 数据驱动”研究的差异性与创新性，给出严格的数学建模、理论命题、基于 Pyomo/Gurobi 的实现方案、与基线方法的对比实验设计及研究计划，为后续建模与仿真提供纲领。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{课题定位与问题提出}
+
+\subsection{研究背景}
+高速公路服务区充电站地处偏远、外接大电网成本高或不可靠，趋向于以“风光储+直流快充”构成的\textbf{离网（孤岛）微网}运行。其运行面临三重矛盾：
+\begin{itemize}
+  \item \textbf{物理矛盾}：无大电网兜底，功率必须实时自平衡，缺额即失负荷，盈余即弃电；
+  \item \textbf{经济矛盾}：运营商追求收益最大化，EV 用户追求充电成本最小，二者通过电价与充放电计划博弈；
+  \item \textbf{数据矛盾}：现场历史运行数据稀缺，难以支撑纯数据驱动的预测与策略学习。
+\end{itemize}
+
+\subsection{核心科学问题}
+现有“充电站—用户主从博弈”研究几乎都建立在\textbf{并网假设}之上，即认为上级电网可兜底功率缺额，因而领导者的定价策略在物理上总是“可执行”的。然而在离网场景中，\textbf{博弈的可行域本身依赖于博弈双方的联合决策}：领导者定价会改变用户响应，用户响应又决定微网能否功率平衡。由此提出本课题的核心科学问题：
+
+\begin{quote}
+\itshape 在离网强物理约束与历史数据缺失的双重条件下，主从博弈的均衡是否仍然存在？如何构造并快速求解一个\textbf{同时满足物理安全与经济最优}的均衡？
+\end{quote}
+
+\subsection{新问题的提出：安全可行主从博弈均衡（SFSE）}
+我们定义：若一对策略 $(x^*, y^*)$ 满足
+\begin{enumerate}
+  \item 跟随者最优反应：$y^* \in BR(x^*)$；
+  \item 领导者最优：$x^* \in \arg\max_{x} F(x, BR(x))$；
+  \item \textbf{联合安全可行}：离网物理约束 $G(x^*, y^*) \le 0$ 成立，
+\end{enumerate}
+则称其为\textbf{安全可行主从博弈均衡}。与传统 Stackelberg 均衡的关键区别在于：条件 (3) 是\textbf{附加的、耦合的、不可事后修补的}。传统均衡解可能在物理上不可行，这正是本课题要解决的新问题。
+
+\section{国内外研究现状与不足}
+
+\subsection{现状梳理}
+相关研究可归为四类：
+\begin{enumerate}
+  \item \textbf{充电站定价博弈}：基于 Stackelberg 双层优化求解运营商—用户定价，多采用 KKT/对偶重构 + 迭代\cite{ref1,ref2,ref3}；
+  \item \textbf{微网/多微网调度}：以优化或强化学习求解能量管理，含电池退化成本\cite{ref4,ref5}；
+  \item \textbf{强化学习求解}：用 DRL/MARL 处理不确定性、实时性与分散决策\cite{ref6,ref7,ref8}；
+  \item \textbf{安全强化学习}：通过安全层、约束策略优化等保证电力系统约束\cite{ref9,ref10}。
+\end{enumerate}
+
+\subsection{关键不足}
+\begin{itemize}
+  \item \textbf{并网假设普遍}：功率缺额由上级电网兜底，掩盖了离网可行性问题；
+  \item \textbf{可行性与博弈分离}：优化方法保证约束但不刻画博弈行为，RL 刻画行为但无法保证约束；
+  \item \textbf{安全约束事后化}：安全层多为通用滤波，未从离网物理结构推导，且缺乏可行性证明；
+  \item \textbf{依赖历史数据}：预测与策略训练常假设有充足数据，忽略数据缺失现实；
+  \item \textbf{均衡理论薄弱}：约束型 Stackelberg 均衡的存在性/唯一性/收敛性鲜有系统证明。
+\end{itemize}
+
+\subsection{差异性对照}
+\begin{table}[htbp]
+\centering
+\small
+\caption{本课题与现有研究的差异对照}
+\label{tab:diff}
+\begin{tabular}{p{2.5cm} p{5.4cm} p{5.4cm}}
+\toprule
+\textbf{维度} & \textbf{现有文献} & \textbf{本课题}\\
+\midrule
+运行模式 & 并网，上级电网兜底 & \textbf{离网}，功率自平衡硬约束\\
+博弈可行域 & 与物理约束解耦 & 与物理约束\textbf{耦合}\\
+约束处理 & 事后安全滤波/罚函数 & 从物理结构推导的\textbf{安全投影}\\
+均衡保证 & 存在性多未证明 & 证明\textbf{存在性/唯一性/收敛性}\\
+数据依赖 & 依赖历史数据训练 & 数字孪生\textbf{生成交互数据}\\
+求解速度 & 双层非凸，在线慢 & 代理最佳反应 + 可微层\textbf{快速求解}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{研究目标与创新点}
+
+\subsection{研究目标}
+\begin{enumerate}
+  \item 建立离网高速充电站—用户\textbf{安全可行主从博弈}数学模型；
+  \item 证明约束型均衡的\textbf{存在性与唯一性}，给出安全性保证；
+  \item 提出\textbf{可快速求解}的安全强化学习—优化混合算法；
+  \item 在数字孪生平台上验证方法的\textbf{经济性、可靠性与优越性}。
+\end{enumerate}
+
+\subsection{创新点（分四类，形成证据链）}
+
+\subsubsection*{创新点一（新问题）：离网耦合约束下的安全可行主从博弈均衡}
+首次将“离网功率自平衡”作为\textbf{均衡的联合可行约束}而非事后校验，提出 SFSE 概念，揭示“定价—响应—物理可行”三者的耦合机理。这是问题层面的创新，区别于所有并网假设研究。
+
+\subsubsection*{创新点二（新模型）：定价—调度—电池寿命的三角耦合模型}
+将 SOH 分组状态与退化成本嵌入博弈状态空间与领导者目标，建立“电价影响充放电、充放电影响寿命、寿命影响长期收益”的闭环模型，量化经济性与电池寿命的 Pareto 关系。
+
+\subsubsection*{创新点三（新方法）：结构化安全层 + 可微最佳反应代理}
+\begin{itemize}
+  \item 从“功率平衡 + SOC + 母线电压”直接构造\textbf{可行集投影算子}，而非通用安全滤波，可证明投影后策略严格可行；
+  \item 用\textbf{可微优化层/神经网络代理}逼近下层最佳反应，打通上下层梯度，实现\textbf{毫秒级}在线求解。
+\end{itemize}
+
+\subsubsection*{创新点四（新结论）：约束型均衡的存在性/唯一性与安全保证}
+给出约束型 Stackelberg 均衡存在性定理、最佳反应迭代收敛条件、以及安全层的可行性/无违约保证，使方法从工程技巧上升为有理论支撑的求解框架。
+
+\section{研究内容与技术路线}
+
+\subsection{数学模型}
+
+\subsubsection*{（1）领导者：微网运营商}
+决策变量：充放电电价 $p_t^{ch}, p_t^{dis}$，储能充放功率 $P_t^{ch}, P_t^{dis}$，弃电 $P_t^{cur}$，失负荷 $P_t^{shed}$。
+
+\begin{equation}
+\max_{x}\; F = \sum_{t=1}^{T}\Big[ \underbrace{\sum_{i} \big(p_t^{ch} E_{i,t}^{ch} - p_t^{dis} E_{i,t}^{dis}\big)}_{\text{售电收入}} - \underbrace{C^{deg}(P_t^{ch},P_t^{dis})}_{\text{电池退化}} - \underbrace{\alpha P_t^{shed} + \beta P_t^{cur}}_{\text{可靠性/弃电惩罚}} - C^{om}_t \Big]
+\end{equation}
+
+约束：
+\begin{align}
+&\text{离网功率平衡：} && P_t^{pv} + P_t^{wt} + P_t^{dis} + P_t^{shed} = P_t^{load} + \sum_i E_{i,t}^{ch} + P_t^{ch} + P_t^{cur}\\
+&\text{SOC 动态：} && SOC_{t+1} = SOC_t + \frac{\eta^{ch} P_t^{ch} - P_t^{dis}/\eta^{dis}}{E^{cap}}\Delta t\\
+&\text{容量与功率限值：} && SOC^{\min}\le SOC_t \le SOC^{\max},\quad 0\le P_t^{ch},P_t^{dis}\le P^{\max}\\
+&\text{终端约束：} && SOC_T \ge SOC^{end}\\
+&\text{母线安全：} && \underline{V}\le V_{n,t}\le \overline{V}\quad \text{(由 OpenDSS 潮流校验)}
+\end{align}
+
+\subsubsection*{（2）跟随者：EV 用户 $i$}
+决策变量：各时段充电量 $E_{i,t}^{ch}$ 与放电量 $E_{i,t}^{dis}$。
+
+\begin{equation}
+\min_{y_i}\; f_i = \sum_{t}\Big[ p_t^{ch} E_{i,t}^{ch} - p_t^{dis} E_{i,t}^{dis} + \lambda_i\,\phi_i(E_{i,t}^{ch}) \Big]
+\end{equation}
+约束：SOC 需求、停留时段、充电功率上限：
+\begin{equation}
+SOC_i^{end}\ge SOC_i^{req},\qquad 0\le E_{i,t}^{ch}\le E_i^{\max}\mathbb{1}_{t\in\mathcal{T}_i},\qquad E_{i,t}^{ch}E_{i,t}^{dis}=0
+\end{equation}
+其中 $\lambda_i$ 为用户异质的不便系数，$\phi_i(\cdot)$ 为满意度/不便函数。
+
+\subsubsection*{（3）安全可行均衡}
+\begin{equation}
+(x^*,y^*):\quad y^*\in BR(x^*)=\arg\min_{y\in\mathcal{Y}(x)} f(x,y),\qquad x^*\in\arg\max_{x\in\mathcal{X}} F\big(x,BR(x)\big)\ \ \text{s.t.}\ G(x,BR(x))\le 0
+\end{equation}
+
+\subsection{理论命题（待证明）}
+\begin{itemize}
+  \item \textbf{命题 1（存在性）}：若策略集为紧凸集、$F$ 连续、$BR$ 上半连续，则 SFSE 存在。
+  \item \textbf{命题 2（唯一性）}：若 $F$ 关于 $x$ 严格凹且 $BR$ 唯一，则 SFSE 唯一。
+  \item \textbf{命题 3（安全性）}：结构化投影算子 $\Pi_{\mathcal{G}}$ 满足 $\Pi_{\mathcal{G}}(a)\in\mathcal{G}$，且与任意策略复合后仍可行。
+  \item \textbf{命题 4（收敛性）}：在超模/压缩条件下，最佳反应迭代以几何速率收敛到 SFSE。
+\end{itemize}
+
+\subsection{求解算法（三档递进）}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{三档求解算法与工具链}
+\label{tab:algo}
+\begin{tabular}{p{1.8cm} p{4.6cm} p{4.6cm} p{2.6cm}}
+\toprule
+\textbf{档位} & \textbf{方法} & \textbf{作用} & \textbf{工具}\\
+\midrule
+档1 & 下层 KKT 替换 + 大M线性化 → 双层 MILP & 精确真解，ground truth & Pyomo + Gurobi\\
+档2 & 最佳反应迭代 BRI + 温启动 + 场景缩减 & 中等规模可用 & Pyomo + Gurobi\\
+档3 & 可微优化层 + 安全RL + 最佳反应代理 & 快速在线求解 & PyTorch + cvxpylayers\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  blk/.style={rectangle,rounded corners,draw=mainblue,thick,fill=lightgray,text width=3.2cm,align=center,minimum height=1.0cm},
+  rl/.style={rectangle,rounded corners,draw=accent,thick,fill=lightgreen,text width=3.2cm,align=center,minimum height=1.0cm},
+  safe/.style={rectangle,rounded corners,draw=accent,thick,fill=lightyellow,text width=3.2cm,align=center,minimum height=1.0cm},
+  ar/.style={-{Stealth[length=2.4mm]},thick,mainblue}
+]
+\node[blk] (opt) {领导者优化\\Pyomo/Gurobi 定价与储能调度};
+\node[rl,right=1.2cm of opt] (br) {最佳反应代理\\NN / 可微优化层};
+\node[safe,below=1.0cm of br] (safe) {结构化安全层\\投影到离网可行集};
+\node[blk,left=1.2cm of safe] (dt) {数字孪生环境\\OpenDSS 潮流 + 场景};
+\draw[ar] (opt) -- node[above,font=\scriptsize]{$x$} (br);
+\draw[ar] (br) -- node[right,font=\scriptsize]{$y^*(x)$} (safe);
+\draw[ar] (safe) -- node[above,font=\scriptsize]{可行响应} (dt);
+\draw[ar] (dt) -- node[left,font=\scriptsize]{状态/奖励/可行性} (opt);
+\end{tikzpicture}
+\caption{安全可行主从博弈的求解闭环}
+\end{figure}
+
+\subsection{基于 Pyomo/Gurobi 的实现方案}
+\begin{itemize}
+  \item \texttt{models/leader.py}：领导者 MILP/MIQP 模型（Pyomo）；
+  \item \texttt{models/follower.py}：用户凸优化模型（Pyomo）；
+  \item \texttt{solvers/bilevel.py}：KKT 替换 + 大M线性化（\texttt{pyomo.mpec}/\texttt{pyomo.bilevel} 或手工互补约束），Gurobi 求解；
+  \item \texttt{solvers/bri.py}：最佳反应迭代与收敛判据；
+  \item \texttt{solvers/learning.py}：PyTorch 最佳反应代理 + cvxpylayers 可微层；
+  \item \texttt{safety/projection.py}：离网可行集投影算子；
+  \item \texttt{env/opendss\_env.py}：Gymnasium 环境封装；
+  \item \texttt{experiments/benchmark.py}：多基线、多指标自动评测。
+\end{itemize}
+
+\section{实验设计与优越性论证}
+
+\subsection{基线方法}
+B1：参考论文双层定价（KKT/对偶迭代）\cite{ref1}；B2：并网假设方法；B3：无安全层纯 RL；B4：MPC 滚动优化。
+
+\subsection{评价指标}
+均衡收敛率、\textbf{离网可行率}、相对双层 MILP 的\textbf{最优性间隙}、求解时间、样本效率、极端场景鲁棒性（失负荷率/弃电率）、SOH 衰减。
+
+\subsection{优越性的可辩护表述}
+\begin{quote}
+\itshape 在离网 + 高不确定性场景下，本方法在\textbf{可行率、求解速度、SOH 保持}三个维度同时占优（例如可行率 100\% vs 基线约 60\%、求解快约 10 倍、最优性间隙 $<2\%$、SOH 衰减降低约 15\%），而非宣称全面最优。
+\end{quote}
+这种“特定区间内多维占优”是审稿人认可且可复现的论证方式。
+
+\subsection{消融实验}
+分别移除安全层、SOH 项、离网约束、可微代理，量化各组件贡献。
+
+\section{可行性分析}
+
+\begin{itemize}
+  \item \textbf{平台基础}：已有基于 OpenDSS 的离网微网数字孪生模型（光伏 3000 kW、风电 2000 kW、充电桩 14400 kW、储能 3750 kW/7500 kWh），可直接封装为训练与验证环境；
+  \item \textbf{模型基础}：已有 SOH 三组管理与日历/循环老化成本模型，可复用；
+  \item \textbf{数据替代}：风光/交通用公开数据统计特征 + 随机场景生成，用户行为用响应度模型，无需自有历史数据；
+  \item \textbf{工具链}：Pyomo + Gurobi 支持 MILP/MPEC，PyTorch + cvxpylayers 支持可微优化，生态成熟。
+\end{itemize}
+
+\section{研究计划与里程碑}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{研究计划与里程碑}
+\begin{tabular}{p{2.2cm} p{10.0cm} p{2.4cm}}
+\toprule
+\textbf{阶段} & \textbf{任务} & \textbf{产出}\\
+\midrule
+第 1 阶段 & 数学模型 + 小算例双层 MILP 真解，验证均衡定义 & 模型与真解\\
+第 2 阶段 & BRI 求解器 + 收敛性验证 + 安全层设计与证明 & 求解器/命题 3\\
+第 3 阶段 & 可微代理 + 安全 RL 加速，形成档3 方法 & 快速算法\\
+第 4 阶段 & 数字孪生多场景对比与消融，理论命题 1/2/4 完善 & 实验与定理\\
+第 5 阶段 & 论文撰写、平台开源、专利申报 & 论文/专利\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{预期成果}
+
+\begin{enumerate}
+  \item 提出并定义“安全可行主从博弈均衡”新问题，形成一套建模—求解—验证方法；
+  \item 发表高水平论文 1--2 篇，申请发明专利 1--2 项；
+  \item 形成可复现的数字孪生 RL 训练环境与评测基准；
+  \item 给出面向离网高速充电站的工程化调度建议。
+\end{enumerate}
+
+\section*{参考文献}
+\addcontentsline{toc}{section}{参考文献}
+\begin{thebibliography}{99}\small
+\bibitem{ref1} 喻磊, 王锐, 程杉, 等. 基于多主体主从博弈的电动汽车充电站双层定价策略[J]. 电力科学与技术学报, 2025, 40(3): 243--254. DOI:10.19781/j.issn.1673-9140.2025.03.026.
+\bibitem{ref2} Real-time optimal energy and reserve management of electric vehicle fast charging station: Hierarchical game approach[J]. IEEE Transactions on Smart Grid, 2017, 9(5): 5357--5369. DOI:10.1109/TSG.2017.2687522.
+\bibitem{ref3} A conic relaxation approach for solving Stackelberg pricing game of electric vehicle charging station considering traffic equilibrium[J]. IEEE Transactions on Smart Grid, 2023. DOI:10.1109/TSG.2023.3329651.
+\bibitem{ref4} Optimal operation scheduling of a microgrid incorporating battery swapping stations[J]. IEEE Transactions on Power Systems, 2019, 34(6): 5063--5073. DOI:10.1109/TPWRS.2019.2923027.
+\bibitem{ref5} Energy management of community microgrids considering degradation cost of battery[J]. Journal of Energy Storage, 2019, 22: 257--269. DOI:10.1016/j.est.2018.12.021.
+\bibitem{ref6} Optimal self-consumption scheduling of highway electric vehicle charging station based on multi-agent deep reinforcement learning[J]. Renewable Energy, 2024, 237: 121982. DOI:10.1016/j.renene.2024.121982.
+\bibitem{ref7} Multi-agent deep reinforcement learning approach for EV charging scheduling in a smart grid[J]. Applied Energy, 2022, 328: 120111. DOI:10.1016/j.apenergy.2022.120111.
+\bibitem{ref8} Cooperative management for PV/ESS-enabled electric vehicle charging stations: A multiagent deep reinforcement learning approach[J]. IEEE Transactions on Industrial Informatics, 2019, 16(5): 3493--3503. DOI:10.1109/TII.2019.2944183.
+\bibitem{ref9} Secure energy management of multi-energy microgrid: A physical-informed safe reinforcement learning approach[J]. Applied Energy, 2023, 335: 120759. DOI:10.1016/j.apenergy.2023.120759.
+\bibitem{ref10} Multi-agent safe policy learning for power management of networked microgrids[J]. IEEE Transactions on Smart Grid, 2020, 12(2): 1048--1062. DOI:10.1109/TSG.2020.3034827.
+\bibitem{ref11} Dynamic pricing and energy management for profit maximization in multiple smart electric vehicle charging stations: A privacy-preserving deep reinforcement learning approach[J]. Applied Energy, 2021, 304: 117754. DOI:10.1016/j.apenergy.2021.117754.
+\bibitem{ref12} Reinforcement learning and its applications in modern power and energy systems: A review[J]. Journal of Modern Power Systems and Clean Energy, 2020, 8(6): 1029--1042. DOI:10.35833/MPCE.2020.000552.
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "deepseek-v4-flash": {
+      "description": "DeepSeek V4 Flash with web search enabled.",
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "websearch": "allow"
+      }
+    }
+  }
+}

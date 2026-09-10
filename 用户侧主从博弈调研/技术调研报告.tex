@@ -1,0 +1,268 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+\definecolor{lightgray}{RGB}{244,246,249}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 离网高速充电站与用户主从博弈技术调研}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.5cm}\textbf{\color{mainblue}离网微网高速公路充电站\\与用户主从博弈优化调度策略}\\[6pt]
+\large 技术调研报告}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\small
+\textbf{摘要：}本报告面向“离网型高速公路服务区充电站微网—电动汽车用户”主从博弈优化调度课题，基于 OpenAlex、Crossref 等学术数据库检索近十年相关文献，并结合项目已有参考论文《基于多主体主从博弈的电动汽车充电站双层定价策略》，系统梳理了该方向的研究脉络、主流技术架构、关键痛点与创新亮点。报告归纳出“物理系统—博弈决策—不确定性—用户行为—储能资产”五层技术架构，指出主从博弈（Stackelberg Game）配合 KKT/对偶重构与 MILP 求解是当前定价—调度耦合的主流范式；离网特性刻画不足、多主体均衡求解困难、用户可调度能力与电池退化耦合不足是主要痛点；交通—电力耦合、SOH 感知调度、分布式求解与数据驱动预测是重要趋势。最后给出面向本课题的研究路线建议，为后续建模与仿真提供依据。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{调研背景与目标}
+
+\subsection{课题定位}
+本课题研究\textbf{离网（孤岛）型高速公路服务区充电站微网}与\textbf{电动汽车（EV）用户}之间的\textbf{主从博弈（Stackelberg Game）优化调度策略}。其核心特征是：
+\begin{itemize}
+  \item \textbf{离网运行}：高速服务区地处偏远，外接大电网成本高或不可靠，微网需依靠风光等分布式电源与储能实现功率自平衡，存在失负荷、弃电与缺额惩罚问题；
+  \item \textbf{强随机负荷}：充电负荷由交通流、节假日、时段与用户行为共同驱动，波动剧烈；
+  \item \textbf{多主体利益冲突}：充电站运营商追求收益最大化，EV 用户追求充电成本最小、满意度最高，二者通过价格与充放电计划相互博弈。
+\end{itemize}
+
+\subsection{调研目标}
+\begin{enumerate}
+  \item 梳理国内外“主从博弈 + 充电站/微网优化调度”的研究现状与主流技术路线；
+  \item 归纳该方向的技术架构、求解方法、不确定性处理与用户行为建模手段；
+  \item 提炼当前研究的\textbf{痛点}与\textbf{亮点/趋势}；
+  \item 结合项目已有的 OpenDSS 数字孪生仿真平台，给出可落地的研究路线建议。
+\end{enumerate}
+
+\subsection{检索方法与文献概览}
+本次调研以 OpenAlex、Crossref 为主要检索源，辅以项目已收集的中文文献。主要检索式包括：
+\begin{itemize}
+  \item \texttt{Stackelberg game electric vehicle charging station pricing}
+  \item \texttt{master-slave game microgrid energy scheduling electric vehicle}
+  \item \texttt{off-grid microgrid highway charging station optimal scheduling}
+  \item \texttt{battery degradation cost microgrid scheduling electric vehicle}
+  \item \texttt{electric vehicle user demand response pricing charging}
+\end{itemize}
+检索结果的时间跨度覆盖 2015—2025 年，主力文献集中于 2017—2024 年；主要发表期刊包括 \textit{IEEE Transactions on Smart Grid}、\textit{IEEE Transactions on Power Systems}、\textit{IEEE Transactions on Industry Applications}、\textit{Applied Energy}、\textit{Energy}、\textit{Journal of Energy Storage}、\textit{Journal of Modern Power Systems and Clean Energy} 等。高被引文献多集中于充电站定价博弈、微网能量管理与电池退化成本建模三个子方向。
+
+\section{研究脉络与主流技术架构}
+
+综合文献可将该领域技术体系归纳为\textbf{五层架构}：物理系统层、博弈决策层、不确定性处理层、用户行为层与储能资产层。各层相互耦合，共同构成“定价—调度—响应”的闭环。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=4mm,
+  font=\small,
+  layer/.style={rectangle,rounded corners,draw=mainblue,thick,fill=lightgray,text width=12.9cm,minimum height=0.95cm,align=center},
+  box/.style={rectangle,rounded corners,draw=accent,fill=white,minimum width=3.0cm,minimum height=0.8cm,align=center,font=\scriptsize},
+  ar/.style={-{Stealth[length=2.4mm]},thick,mainblue}
+]
+\node[layer] (l1) {\textbf{物理系统层}\quad 离网微网（风光储 + 直流快充桩 + 母线/变流器），功率自平衡与可靠性约束};
+\node[layer,below=of l1] (l2) {\textbf{博弈决策层}\quad Stackelberg 主从博弈：领导者（运营商/DSO）定价与调度 $\leftrightarrow$ 跟随者（EV 用户）充放电响应};
+\node[layer,below=of l2] (l3) {\textbf{不确定性处理层}\quad 随机规划 / 鲁棒优化 / 机会约束 / 分布鲁棒 / 数据驱动预测};
+\node[layer,below=of l3] (l4) {\textbf{用户行为层}\quad 响应能力评估、路网—电力耦合、用户满意度与有限理性};
+\node[layer,below=of l4] (l5) {\textbf{储能资产层}\quad 循环+日历老化成本、SOH 分组、换电/电池库、V2G};
+\draw[ar] (l1) -- (l2);
+\draw[ar] (l2) -- (l3);
+\draw[ar] (l3) -- (l4);
+\draw[ar] (l4) -- (l5);
+\end{tikzpicture}
+\caption{离网高速充电站—用户主从博弈调度的五层技术架构}
+\end{figure}
+
+\subsection{物理系统层：离网微网与高速充电站}
+离网型高速充电站的典型物理架构为：光伏、风电等分布式电源经变流器接入低压/中压母线，储能系统（BESS）双向连接母线，直流快充桩作为主要负荷，配置柴油发电机或 Vsource 作为电压/频率参考与紧急支撑。与并网微网相比，其技术难点在于：
+\begin{itemize}
+  \item \textbf{无大电网兜底}，功率必须实时自平衡，缺额需通过失负荷或备用容量解决，盈余则弃电；
+  \item 储能同时承担能量搬移、功率平抑与电压/频率支撑多重角色，容量与寿命约束更紧；
+  \item 充电负荷时空分布受交通流影响，服务区之间可通过联络线或移动储能互济。
+\end{itemize}
+项目现有平台已用 OpenDSS 构建了“光伏 3000 kW + 风电 2000 kW + 充电桩 14400 kW + 储能 3750 kW/7500 kWh”的离网微网数字孪生模型，可作为本课题的物理仿真底座。
+
+\subsection{博弈决策层：主从博弈建模范式}
+\subsubsection{主从博弈的基本结构}
+主从博弈（Stackelberg Game）以\textbf{领导者—跟随者}的序贯决策刻画主体间的利益冲突，是充电站定价与微网调度的主流建模工具。文献中常见的角色划分为三类：
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{主从博弈角色划分的三种典型范式}
+\begin{tabular}{p{2.4cm} p{4.2cm} p{4.2cm} p{3.6cm}}
+\toprule
+\textbf{范式} & \textbf{领导者（上层）} & \textbf{跟随者（下层）} & \textbf{代表文献}\\
+\midrule
+三层范式 & DSO / 配电网运营商（出清节点边际电价） & 充电站（定价）、EV 用户（充放电） & 喻磊等 2025\cite{ref1}；\\
+两层范式 & 充电站运营商 / 聚合商（制定充放电价） & EV 用户（选择充放电计划） & \cite{ref2,ref3,ref9}\\
+微网—站范式 & 微网运营商（储能调度/售电） & 换电站 / BESS 运营商 & \cite{ref7}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{目标函数与约束}
+领导者通常以\textbf{收益最大/运营成本最小}为目标，决策变量为电价、服务费、购售电计划与储能充放电功率；跟随者以\textbf{用能成本最小/满意度最大}为目标，决策变量为充电时段、功率及是否参与 V2G。约束体系一般包括：
+\begin{itemize}
+  \item 功率平衡约束（含 EV 充电负荷、储能、分布式电源）；
+  \item 节点电压/线路容量等电网安全约束；
+  \item 储能 SOC 动态、充放电互斥与功率上限约束；
+  \item EV 用户 SOC 需求、并网时段与最短充电时间约束；
+  \item 离网场景下还需补充失负荷上限、弃电惩罚与终端 SOC 约束。
+\end{itemize}
+
+\subsubsection{均衡求解方法}
+双层主从博弈本质上是一个\textbf{带有均衡约束的数学规划（MPEC）}问题。主流求解路径包括：
+\begin{enumerate}
+  \item \textbf{KKT / 对偶重构}：将下层优化问题用其 KKT 条件或对偶问题替换，转化为单层 MILP/MIQP。参考论文即采用“对偶理论 + KKT 条件重构 + 迭代算法”求解 DLMP 与充电站定价\cite{ref1}；
+  \item \textbf{大 M 线性化}：对互补松弛条件引入 0-1 变量线性化，适配商业求解器；
+  \item \textbf{锥松弛}：针对非凸互补约束采用二阶锥（SOCP）/半定（SDP）松弛，如文献\cite{ref4}用锥松弛求解考虑交通均衡的定价博弈；
+  \item \textbf{分布式求解}：采用 ADMM 等交替方向乘子法实现多主体去中心化求解，兼顾隐私与可扩展性，如微网—换电站双层调度\cite{ref7}；
+  \item \textbf{启发式/强化学习}：对高维、非凸、实时场景，采用遗传算法、粒子群或深度强化学习近似求解\cite{ref15}。
+\end{enumerate}
+
+\subsection{不确定性处理层}
+离网充电站面临新能源出力、充电负荷、市场电价与用户行为多重不确定性，文献中的处理方法主要有：
+\begin{itemize}
+  \item \textbf{随机规划/场景法}：蒙特卡洛抽样生成场景并缩减，最小化期望成本；
+  \item \textbf{鲁棒优化}：以最坏情况为目标，保证极端场景下的可靠性，但偏保守；
+  \item \textbf{机会约束规划}：以一定置信水平满足约束，平衡经济性与风险；
+  \item \textbf{概率—可能混合方法}：同时处理历史数据不确定性与人为/模糊不确定性，如文献\cite{ref7}；
+  \item \textbf{分布鲁棒与数据驱动}：基于机器学习预测与分布鲁棒优化，减少对精确分布的依赖。
+\end{itemize}
+
+\subsection{用户行为层：需求响应与可调度能力}
+EV 用户是主从博弈的关键跟随者，其\textbf{响应能力与响应意愿}决定了充电站可调度潜力的边界。主流建模手段包括：
+\begin{itemize}
+  \item \textbf{可调度能力预测}：结合出行时段、初始 SOC、并网时长与需求响应时段，评估单车的可充/可放能力（参考论文的核心贡献之一\cite{ref1}）；
+  \item \textbf{路网—电力耦合建模}：用动态路网、速度—流量模型、Dijkstra 路径规划刻画交通流对充电负荷的影响，并与交通均衡联合求解\cite{ref4,ref14}；
+  \item \textbf{用户满意度与有限理性}：引入充电成本、等待时间、便利性等效用项，或基于消费者心理学建立电价响应度模型，避免“完全理性”假设\cite{ref2,ref9}；
+  \item \textbf{概率行为模型}：高斯混合出行分布、SOC 概率密度、充电概率函数等。
+\end{itemize}
+
+\subsection{储能资产层：电池退化与健康管理}
+将储能视为可折旧资产、显式建模其退化成本，是近年来的重要进展：
+\begin{itemize}
+  \item \textbf{退化成本建模}：基于放电深度（DOD）与循环寿命的非线性关系，或基于吞吐量的线性退化模型，将 SOH 衰减折算为经济成本\cite{ref7,ref8,ref13}；
+  \item \textbf{SOH 分组聚合}：按 SOH 将电池分为高/中/低组，组内同质化处理，降低优化规模并实现“优差搭配”调度；
+  \item \textbf{换电/电池库运营}：以换电站或电池库为对象，研究电池在微网间流转与电力流耦合的“双流耦合”调度；
+  \item \textbf{V2G 参与}：EV 通过聚合商参与需求响应，电池寿命损失与收益的权衡成为定价关键\cite{ref9}。
+\end{itemize}
+
+\section{关键痛点}
+
+\begin{enumerate}
+  \item \textbf{可调度能力刻画不充分。} 现有模型多基于确定性或简化行为假设，难以准确刻画 EV 用户响应意愿、交通—电力耦合与随机性，导致可调度潜力被高估或低估\cite{ref1,ref2}。
+  \item \textbf{多主体利益难以兼顾。} 多数研究只考虑 EV 与充电站两方，或忽略配网/微网侧成本；三层及以上博弈的\textbf{均衡存在性与唯一性证明}困难，模型可解性差\cite{ref1,ref3}。
+  \item \textbf{双层非凸求解复杂度高。} MPEC 含互补约束、整数变量与非线性项，规模增大后计算量急剧上升，难以满足实时滚动调度需求；锥松弛、线性化往往以牺牲精度为代价\cite{ref4}。
+  \item \textbf{离网特性建模不足。} 绝大多数文献默认并网运行、有上级电网兜底；离网场景下的\textbf{失负荷/弃电权衡、频率电压稳定、惯量不足、终端 SOC 保障}等约束鲜有系统建模。
+  \item \textbf{电池退化与博弈调度耦合不足。} 退化成本常被简化为线性吞吐量成本，SOH 很少作为状态变量进入博弈模型，导致调度策略对电池寿命的影响评估失真\cite{ref8,ref13}。
+  \item \textbf{不确定性与经济性矛盾。} 随机规划依赖场景精度、鲁棒优化过于保守、机会约束置信水平难以标定；预测误差会显著影响博弈均衡与收益\cite{ref7}。
+  \item \textbf{用户异质性与信息不对称。} 真实响应参数、成本函数属用户隐私，博弈模型却常假设信息完全，实际中难以获取；用户异质性也增加建模维度\cite{ref16}。
+  \item \textbf{评价体系与测试平台不统一。} 缺乏标准算例、统一指标与公开数据，导致不同方法难以横向比较；交通、电力、市场多源数据稀缺且粒度不一。
+\end{enumerate}
+
+\section{亮点与创新趋势}
+
+\begin{enumerate}
+  \item \textbf{主从博弈 + KKT/对偶重构成为主流范式。} 将定价与调度统一到双层优化框架，兼顾运营商收益与用户成本，是当前最成熟、最易落地的方法论\cite{ref1,ref2,ref3,ref6}。
+  \item \textbf{交通—电力耦合联合建模。} 将动态路网、交通均衡与配电网潮流耦合，刻画充电负荷的时空转移，显著提升定价策略的物理真实性\cite{ref4,ref14}。
+  \item \textbf{用户满意度与有限理性引入。} 从“完全理性”转向考虑满意度、便利性与心理响应的行为模型，使均衡更贴近真实用户决策\cite{ref2,ref9}。
+  \item \textbf{电池资产化与 SOH 感知调度。} 显式退化成本 + SOH 分组聚合，实现经济性与寿命的协同优化，并可延伸至换电站/电池库运营\cite{ref7,ref8,ref13}。
+  \item \textbf{分布式与学习型求解。} ADMM 等分布式算法保护主体隐私、提升可扩展性；深度强化学习用于高维实时决策，是新兴方向\cite{ref7,ref15}。
+  \item \textbf{机器学习赋能。} 用于充电站选址、需求预测与定价决策，提升模型对复杂数据的适应能力\cite{ref5,ref15}。
+  \item \textbf{多微网协同与多流耦合。} 从单微网走向微网群协同，电力流与电池库/交通流多流耦合，挖掘空间互济与资源共享增益\cite{ref12}。
+  \item \textbf{不确定性处理多样化。} 随机、鲁棒、机会约束、分布鲁棒与概率—可能混合方法并行发展，形成风险—经济性权衡工具箱\cite{ref7,ref13}。
+\end{enumerate}
+
+\section{对本课题的启示与建议研究路线}
+
+\subsection{课题定位}
+建议将课题定位为：\textbf{离网高速服务区充电站微网运营商（领导者）与 EV 用户（跟随者）的两层主从博弈优化调度}，并可将配电网/能量管理系统作为外层约束或第三层扩展。
+
+\subsection{建议建模框架}
+\begin{itemize}
+  \item \textbf{领导者（运营商）}：以日净利润最大化为目标，决策储能充放电功率与充放电电价/服务费；
+  \item \textbf{跟随者（EV 用户）}：以充电成本最小、满意度最大为目标，决策充电时段、功率与 V2G 参与；
+  \item \textbf{离网约束}：功率自平衡惩罚（对应现有模型中 Vsource 偏离零的惩罚）、失负荷与弃电惩罚、储能终端 SOC 约束；
+  \item \textbf{电池资产}：复用项目已有的 SOH 三组管理与日历/循环老化成本模型，将 SOH 作为状态变量进入优化；
+  \item \textbf{目标函数}：日净利润 $=$ EV 充电收入 $+$ 余电收益 $-$ 购电/缺额成本 $-$ 电池日使用成本 $-$ 弃电惩罚。
+\end{itemize}
+
+\subsection{建议求解与验证路径}
+\begin{enumerate}
+  \item \textbf{求解}：优先采用“下层 KKT 重构 + 大 M 线性化 → 单层 MILP”，配合 MPC 滚动优化；对规模较大的多微网场景可探索 ADMM 分布式求解；
+  \item \textbf{不确定性}：先以场景法/蒙特卡洛处理风光与充电负荷不确定性，再视需要引入鲁棒或机会约束；
+  \item \textbf{仿真验证}：基于现有 OpenDSS 数字孪生平台，构建“无博弈（规则策略）—单层优化—双层主从博弈—考虑 SOH”的多场景对比，验证经济性、可靠性与电池寿命的协同增益；
+  \item \textbf{评价指标}：日净利润、失负荷率、弃电率、EV 充电满足率、平均 SOH 衰减、用户成本/满意度等。
+\end{enumerate}
+
+\subsection{预期创新点}
+\begin{itemize}
+  \item 将\textbf{离网功率自平衡惩罚}与\textbf{主从博弈定价}统一建模，弥补现有研究偏向并网场景的不足；
+  \item 将\textbf{SOH 分组退化成本}嵌入博弈目标函数，实现“定价—调度—寿命”三者协同；
+  \item 结合\textbf{高速服务区交通流特征}刻画充电负荷，构建交通—电力耦合的离网博弈调度模型。
+\end{itemize}
+
+\section*{参考文献}
+\addcontentsline{toc}{section}{参考文献}
+\begin{thebibliography}{99}\small
+\bibitem{ref1} 喻磊, 王锐, 程杉, 等. 基于多主体主从博弈的电动汽车充电站双层定价策略[J]. 电力科学与技术学报, 2025, 40(3): 243--254. DOI:10.19781/j.issn.1673-9140.2025.03.026.
+\bibitem{ref2} A dynamic pricing scheme for electric vehicle in photovoltaic charging station based on Stackelberg game considering user satisfaction[J]. Computers \& Industrial Engineering, 2021, 154: 107117. DOI:10.1016/j.cie.2021.107117.
+\bibitem{ref3} Real-time optimal energy and reserve management of electric vehicle fast charging station: Hierarchical game approach[J]. IEEE Transactions on Smart Grid, 2017, 9(5): 5357--5369. DOI:10.1109/TSG.2017.2687522.
+\bibitem{ref4} A conic relaxation approach for solving Stackelberg pricing game of electric vehicle charging station considering traffic equilibrium[J]. IEEE Transactions on Smart Grid, 2023. DOI:10.1109/TSG.2023.3329651.
+\bibitem{ref5} Optimal location and pricing of electric vehicle charging stations using machine learning and Stackelberg game[J]. IEEE Transactions on Industry Applications, 2024. DOI:10.1109/TIA.2024.3364579.
+\bibitem{ref6} Competitive charging station pricing for plug-in electric vehicles[J]. IEEE Transactions on Smart Grid, 2015, 8(2): 627--639. DOI:10.1109/TSG.2015.2504502.
+\bibitem{ref7} Optimal operation scheduling of a microgrid incorporating battery swapping stations[J]. IEEE Transactions on Power Systems, 2019, 34(6): 5063--5073. DOI:10.1109/TPWRS.2019.2923027.
+\bibitem{ref8} Energy management of community microgrids considering degradation cost of battery[J]. Journal of Energy Storage, 2019, 22: 257--269. DOI:10.1016/j.est.2018.12.021.
+\bibitem{ref9} Game theory based optimal pricing strategy for V2G participating in demand response[J]. IEEE Transactions on Industry Applications, 2023, 59(5): 5319--5328. DOI:10.1109/TIA.2023.3273209.
+\bibitem{ref10} An analysis of price competition in heterogeneous electric vehicle charging stations[J]. IEEE Transactions on Smart Grid, 2018, 10(4): 3990--4002. DOI:10.1109/TSG.2018.2847414.
+\bibitem{ref11} Intelligent regulation on demand response for electric vehicle charging: A dynamic game method[J]. IEEE Access, 2020, 8: 66105--66115. DOI:10.1109/ACCESS.2020.2985578.
+\bibitem{ref12} Multi-microgrid energy management systems: Architecture, communication, and scheduling strategies[J]. Journal of Modern Power Systems and Clean Energy, 2021, 9(3): 463--476. DOI:10.35833/MPCE.2019.000237.
+\bibitem{ref13} Optimal operational planning of scalable DC microgrid with demand response, islanding, and battery degradation cost considerations[J]. Applied Energy, 2019, 237: 695--707. DOI:10.1016/j.apenergy.2019.01.040.
+\bibitem{ref14} Coordinated pricing of coupled urban power-traffic networks: The value of information sharing[J]. Applied Energy, 2021, 301: 117428. DOI:10.1016/j.apenergy.2021.117428.
+\bibitem{ref15} Learning to operate an electric vehicle charging station considering vehicle-grid integration[J]. IEEE Transactions on Smart Grid, 2022, 13(4): 3038--3048. DOI:10.1109/TSG.2022.3165479.
+\bibitem{ref16} Demand side management of electric vehicles in smart grids: A survey on strategies, challenges, modeling, and optimization[J]. Energy Reports, 2022, 8: 12166--12190. DOI:10.1016/j.egyr.2022.09.023.
+\bibitem{ref17} A comprehensive review on electric vehicles smart charging: Solutions, strategies, technologies, and challenges[J]. Journal of Energy Storage, 2022, 54: 105241. DOI:10.1016/j.est.2022.105241.
+\bibitem{ref18} Optimal energy trade in retailer, charging station, and electric vehicles using a Stackelberg game[C]. 2023 IEEE IAS Global Conference on Renewable Energy and Hydrogen Technologies (GlobConHT), 2023. DOI:10.1109/GlobConHT56829.2023.10087684.
+\bibitem{ref19} 李德兴. 分时电价下光储微电网多时间尺度协调运行策略研究[D].
+\bibitem{ref20} 娄阳. 计及电动汽车参与的微网协同储能调度研究[D].
+\bibitem{ref21} 考虑应急电源车的高速公路服务区微网两阶段优化调度方法[J].（胡俊杰等）
+\bibitem{ref22} 王明明. 微电网源网荷储协调优化调度策略研究[D].
+\bibitem{ref23} 基于节假日因素影响的高速服务区充电负荷建模与充电桩优化规划[J].
+\bibitem{ref24} Modeling and optimization for distributed microgrid based on multi-agent systems[C].
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,317 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+\definecolor{lightgray}{RGB}{244,246,249}
+\definecolor{lightgreen}{RGB}{238,247,240}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 强化学习求解方向专题调研}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.5cm}\textbf{\color{mainblue}强化学习求解方向专题调研}\\[6pt]
+\large 离网高速充电站—用户主从博弈调度的\\强化学习求解技术}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\small
+\textbf{摘要：}本报告是“离网微网高速充电站与用户主从博弈优化调度策略”课题的第二份专题调研，聚焦\textbf{强化学习（Reinforcement Learning, RL）求解方向}。报告基于 OpenAlex/Crossref 检索的 30 余篇文献，系统梳理了 RL 与数学规划方法的对比、MDP 建模要素、单智能体与多智能体算法谱系、RL 与主从博弈的四种结合范式、约束与安全处理手段，并总结了该方向的痛点、亮点与趋势。分析表明：RL 擅长处理不确定性、实时性与高维决策，但存在约束满足无保证、样本效率低、可解释性差、均衡收敛性难证等问题；“RL + MPC/优化”混合、安全强化学习、多智能体集中训练分散执行（CTDE）、离线/联邦 RL 是当前主要突破口。报告最后给出将 RL 嵌入主从博弈框架的落地方案，建议以现有 OpenDSS 数字孪生平台封装为训练环境。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{调研背景与范围}
+
+\subsection{为什么关注强化学习求解}
+在离网高速充电站—用户主从博弈问题中，若采用传统数学规划路线（下层 KKT 重构 + 大 M 线性化 + MILP），可获得严格的均衡解，但面临三重挑战：
+\begin{itemize}
+  \item \textbf{不确定性}：光伏/风电出力、交通流与充电需求、用户行为随机，精确概率分布难以获得；
+  \item \textbf{计算复杂度}：双层非凸 + 互补约束 + 整数变量，规模增大后难以满足实时滚动调度；
+  \item \textbf{信息不对称}：用户真实响应参数与成本函数属于隐私，集中式优化难以获取。
+\end{itemize}
+强化学习通过“与环境的交互试错”学习策略，\textbf{无需精确系统模型、可在毫秒级在线决策、天然支持分散式部署}，因此成为求解该类博弈调度问题的重要补充甚至替代方案。
+
+\subsection{调研范围}
+本报告覆盖以下子方向：
+\begin{enumerate}
+  \item RL 与数学规划在微网/充电站调度中的定位与对比；
+  \item RL 的 MDP 建模（状态、动作、奖励）在充电站场景的映射；
+  \item 单智能体与多智能体 RL 算法谱系；
+  \item RL 与主从博弈（Stackelberg Game）的结合范式；
+  \item 约束满足、安全性、样本效率等关键问题的处理手段；
+  \item 面向本课题的落地建议。
+\end{enumerate}
+
+\subsection{文献概览}
+\begin{sloppypar}
+检索式包括 \texttt{deep reinforcement learning electric vehicle charging station scheduling}、\texttt{multi-agent reinforcement learning microgrid energy management}、\texttt{safe reinforcement learning power system}、\texttt{reinforcement learning Stackelberg game bilevel}、\texttt{offline reinforcement learning energy management} 等。文献时间跨度 2017—2025 年，主力集中在 2019—2024 年；主要发表期刊包括 \textit{IEEE Transactions on Smart Grid}、\textit{IEEE Transactions on Industrial Informatics}、\textit{Applied Energy}、\textit{Energy}、\textit{Renewable and Sustainable Energy Reviews}、\textit{Journal of Modern Power Systems and Clean Energy}、\textit{IEEE Access} 等。
+\end{sloppypar}
+
+\section{强化学习与数学规划方法的对比}
+
+RL 与数学规划（MPC/MILP/MPEC）并非互斥，而是互补。表~\ref{tab:compare} 给出二者在关键维度上的对比。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{数学规划与强化学习方法的对比}
+\label{tab:compare}
+\begin{tabular}{p{2.9cm} p{6.0cm} p{6.0cm}}
+\toprule
+\textbf{维度} & \textbf{数学规划（MPC/MILP/MPEC）} & \textbf{强化学习（RL）}\\
+\midrule
+模型依赖 & 需精确物理/经济模型与参数 & 模型无关，仅需交互数据\\
+不确定性 & 需显式建模（场景/鲁棒/机会约束） & 隐式学习，适应随机环境\\
+最优性 & 有最优性/次优性保证，可证均衡 & 通常无全局最优保证，收敛性依赖算法\\
+约束满足 & 硬约束可严格满足 & 需专门设计（罚函数/安全层/动作屏蔽）\\
+实时性 & 大规模问题在线求解慢 & 训练后可毫秒级在线推理\\
+可解释性 & 强，可分析影子价格/灵敏度 & 弱，黑箱决策\\
+样本效率 & 无需训练数据 & 需要大量交互或历史数据\\
+多主体 & 双层/MPEC 求解困难 & MARL 天然支持分散决策\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+实践中的主流结论是：\textbf{“优化保证约束与物理可行性，RL 提供快速、自适应的策略”}，即采用混合架构而非二选一\cite{ref7,ref8}。
+
+\section{强化学习建模框架}
+
+\subsection{充电站—用户博弈的 MDP 映射}
+将调度问题建模为马尔可夫决策过程（MDP）$\langle \mathcal{S},\mathcal{A},P,R,\gamma \rangle$，其在充电站场景的典型映射见表~\ref{tab:mdp}。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{充电站—用户博弈问题的 MDP 要素映射}
+\label{tab:mdp}
+\begin{tabular}{p{2.6cm} p{11.8cm}}
+\toprule
+\textbf{要素} & \textbf{充电站/微网场景中的具体内容}\\
+\midrule
+状态 $s_t$ & 储能 SOC/SOH、光伏与风电出力、当前/预测电价、EV 到达率与剩余 SOC、交通流量、时间（时段/节假日）、上一时刻功率\\
+动作 $a_t$ & 储能充放电功率、充电站售电/购电电价或服务费、充电桩功率分配、V2G 放电激励、失负荷/弃电决策\\
+奖励 $r_t$ & 日净利润、负运营成本、用户成本/满意度、电池退化成本、失负荷/弃电惩罚、电压/功率偏差惩罚\\
+转移 $P$ & 新能源与负荷的随机演化、EV 到达过程、用户对价格的响应行为\\
+折扣 $\gamma$ & 权衡即时收益与长期收益（电池寿命、SOH）\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{单智能体算法谱系}
+主流 RL 算法按动作空间与学习目标可分为值函数法、策略梯度法与 Actor-Critic 法，见表~\ref{tab:algo}。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{主流强化学习算法及其在能源调度中的适用性}
+\label{tab:algo}
+\begin{tabular}{p{2.1cm} p{2.6cm} p{2.6cm} p{6.4cm}}
+\toprule
+\textbf{算法} & \textbf{类型} & \textbf{动作空间} & \textbf{特点与适用场景}\\
+\midrule
+DQN / Double / Dueling & 值函数 & 离散 & 充电桩通断、档位选择；易发散、难处理连续功率\\
+DDPG & Actor-Critic & 连续 & 储能连续充放电；样本效率低、易过估计\\
+TD3 & Actor-Critic & 连续 & DDPG 改进，双 critic 抑制过估计，稳定性好\\
+SAC & Actor-Critic & 连续 & 最大熵、探索强、鲁棒，适合连续功率调度\\
+PPO & 策略梯度 & 离散/连续 & 训练稳定、易调参，广泛用于微网调度\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+其中 SAC、TD3、PPO 是当前储能/充电调度中最常用的三种算法\cite{ref11,ref14,ref17}。
+
+\subsection{多智能体强化学习（MARL）}
+当存在多个充电站、多个微网或多个利益主体时，需采用 MARL。主流范式包括：
+\begin{itemize}
+  \item \textbf{独立学习（IL）}：每个智能体独立用单智能体算法学习，简单但环境非平稳；
+  \item \textbf{集中训练分散执行（CTDE）}：训练时利用全局信息，执行时仅用局部观测，代表算法有 MADDPG、COMA、QMIX、MAPPO，是当前多微网/多充电站协同的主流\cite{ref6,ref20,ref21}；
+  \item \textbf{值分解}：将联合 Q 值分解为个体 Q 值之和（VDN/QMIX），适合协作型任务；
+  \item \textbf{联邦/分布式 RL}：保护各主体数据隐私，支持跨主体协同训练\cite{ref18,ref19}。
+\end{itemize}
+
+\section{强化学习与主从博弈的结合范式}
+
+这是本课题最核心的问题。文献中 RL 与 Stackelberg 主从博弈的结合可归纳为四种范式（表~\ref{tab:combine}）。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{RL 与主从博弈的四种结合范式}
+\label{tab:combine}
+\begin{tabular}{p{2.2cm} p{3.2cm} p{3.2cm} p{5.4cm}}
+\toprule
+\textbf{范式} & \textbf{上层（领导者）} & \textbf{下层（跟随者）} & \textbf{特点与代表}\\
+\midrule
+A. RL 解下层 & 优化（KKT/MILP） & RL 学习用户响应 & 上层可证最优，下层刻画复杂用户行为；适合用户模型难建模\\
+B. RL 解上层 & RL 学习定价/调度 & 优化或仿真用户 & 实时定价、隐私友好；下层需可解析\\
+C. 双层均 RL & RL（运营商） & RL（用户/多智能体） & 端到端博弈学习，适合大规模；均衡收敛难证\\
+D. RL-MPC 混合 & MPC 保约束 & RL 提供策略/初值 & 兼顾约束满足与实时自适应\cite{ref7}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{范式 A：下层用 RL 学习用户响应}
+上层运营商仍用优化模型出清电价，下层 EV 用户用 RL 学习充放电策略。优点是保留了上层定价的最优性与可解释性，同时用 RL 处理用户行为的高度非线性与随机性。缺点是需要上层反复调用下层策略，训练成本高。
+
+\subsection{范式 B：上层用 RL 学习定价}
+运营商用 RL 直接学习动态定价或储能调度策略，用户侧用优化模型或基于响应度的解析模型。文献\cite{ref12}提出隐私保护 DRL 方法，在多个智能充电站间实现利润最大化的动态定价与能量管理，避免共享用户隐私数据；\cite{ref15}用 RL 实现与鸭形曲线相关的动态定价与电池调度。该范式适合实时定价与隐私敏感场景。
+
+\subsection{范式 C：双层/多智能体 RL 求解博弈均衡}
+将领导者与跟随者分别建模为智能体，用 MARL 学习 Stackelberg 均衡。运营商智能体学习定价/调度，用户（或用户聚合）智能体学习响应，通过多轮交互逼近均衡。该方法扩展性好，但\textbf{均衡存在性、唯一性与收敛性缺乏理论保证}，且训练不稳定。
+
+\subsection{范式 D：RL-MPC 混合}
+用 MPC 处理硬约束与滚动优化，用 RL 学习价值函数、终端成本或策略初始化，形成“reinforced MPC”。文献\cite{ref7}在建筑能量管理中将 RL 与 MPC 融合，结果表明纯 RL 难以满足约束，而 RL-MPC 可在保证约束的同时接近 MPC 性能并适应不确定环境。这一思路对\textbf{离网场景的硬约束（SOC、功率自平衡、失负荷）尤为重要}。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  blk/.style={rectangle,rounded corners,draw=mainblue,thick,fill=lightgray,text width=3.4cm,align=center,minimum height=1.0cm},
+  rl/.style={rectangle,rounded corners,draw=accent,thick,fill=lightgreen,text width=3.4cm,align=center,minimum height=1.0cm},
+  ar/.style={-{Stealth[length=2.4mm]},thick,mainblue}
+]
+\node[rl] (leader) {上层：运营商\\RL 学习定价/储能调度};
+\node[blk,right=1.4cm of leader] (env) {环境：OpenDSS 数字孪生\\微网潮流 + EV 用户响应};
+\node[blk,below=1.0cm of env] (user) {下层：EV 用户\\优化 / RL / 响应度模型};
+\draw[ar] (leader) -- node[above,font=\scriptsize]{电价/调度指令} (env);
+\draw[ar] (env) -- node[right,font=\scriptsize]{状态 $s_t$、奖励 $r_t$} (leader);
+\draw[ar] (env) -- (user);
+\draw[ar] (user) -- node[below,font=\scriptsize]{充放电响应} (env);
+\end{tikzpicture}
+\caption{RL 与主从博弈结合的典型训练闭环（以范式 B 为例）}
+\end{figure}
+
+\section{约束处理与安全强化学习}
+
+RL 的最大短板是\textbf{约束满足无保证}。在离网微网中，SOC 越限、功率不平衡、失负荷等后果严重，因此安全 RL 是必选项。主流手段包括：
+\begin{itemize}
+  \item \textbf{动作屏蔽/投影}：将动作投影到可行域，保证 SOC、功率上下限等硬约束；
+  \item \textbf{罚函数法}：将约束违反折算为负奖励，实现简单但难以严格保证；
+  \item \textbf{拉格朗日法/约束策略优化}：将约束作为对偶变量引入，如 CPO、RCPO；
+  \item \textbf{安全层/物理信息约束}：在策略之上叠加基于物理模型的校正层，如文献\cite{ref8}提出“物理信息引导的安全层”，通过求解动作校正问题保证所有物理约束，文献\cite{ref9}提出监督式多智能体安全策略学习（SMAS-PL），利用梯度信息保证配网 AC 潮流约束；
+  \item \textbf{RL-MPC 混合}：由 MPC 兜底满足硬约束\cite{ref7}。
+\end{itemize}
+
+\section{关键痛点}
+
+\begin{enumerate}
+  \item \textbf{约束满足无保证。} 纯 RL 是黑箱决策，难以严格满足离网微网的 SOC、功率平衡与电压约束；安全 RL 的保守性与经济性难以兼顾\cite{ref8,ref9}。
+  \item \textbf{样本效率低、训练成本高。} 深度 RL 通常需要海量交互，真实微网无法承受在线试错；仿真到现实（sim-to-real）差距显著。
+  \item \textbf{均衡收敛性无理论保证。} 多智能体博弈学习中，环境非平稳、策略相互影响，Stackelberg 均衡的存在性、唯一性与收敛性难以证明\cite{ref6}。
+  \item \textbf{奖励设计与多目标权衡困难。} 净利润、电池寿命、用户满意度、可靠性等多目标需折算为单一奖励，权重敏感且难以标定。
+  \item \textbf{可解释性差。} 调度人员难以理解与信任 RL 决策，监管与责任界定困难。
+  \item \textbf{泛化能力不足。} 场景/拓扑/参数变化后策略需重新训练，跨场景迁移困难。
+  \item \textbf{数据隐私与多主体信息壁垒。} 多主体协同需要共享状态，与用户隐私、商业机密冲突，需联邦学习等手段\cite{ref12,ref18}。
+  \item \textbf{缺乏标准环境与评测基准。} 与建筑领域 BOPTEST 相比，充电站/微网 RL 缺少统一仿真环境与基准，结果难复现、难横向比较\cite{ref7}。
+  \item \textbf{电池退化建模与 RL 耦合不足。} 退化成本多为简化线性项，SOH 状态维度高、稀疏，难以被 RL 有效学习。
+\end{enumerate}
+
+\section{亮点与创新趋势}
+
+\begin{enumerate}
+  \item \textbf{“RL + 优化/MPC”混合架构成为主流。} 用优化保约束、RL 保自适应，兼顾可靠性与实时性\cite{ref7,ref8}。
+  \item \textbf{安全强化学习快速兴起。} 物理信息安全层、约束策略优化、动作校正等，使 RL 可用于有硬约束的电力系统\cite{ref8,ref9}。
+  \item \textbf{多智能体 CTDE 框架广泛应用。} 集中训练分散执行，兼顾协同性能与隐私/可扩展性，适合多充电站、多微网协同\cite{ref6,ref20,ref21}。
+  \item \textbf{图神经网络/注意力机制与 RL 结合。} 用于处理拓扑结构、变规模智能体与交通—电力耦合关系。
+  \item \textbf{离线 RL 与迁移学习。} 利用历史数据离线训练，降低在线试错风险；元学习/迁移学习提升跨场景泛化。
+  \item \textbf{联邦强化学习保护隐私。} 多主体在不共享原始数据的前提下协同训练\cite{ref18,ref19}。
+  \item \textbf{与博弈论深度融合。} 用 MARL 求解 Stackelberg/Nash 均衡，形成“学习型博弈”，处理用户有限理性与信息不对称\cite{ref13,ref22}。
+  \item \textbf{面向高速场景的专门研究出现。} 如文献\cite{ref2}针对高速公路 EV 充电站自消纳调度提出多智能体 DRL 方法，与本课题高度相关。
+  \item \textbf{数字孪生作为训练环境。} 用高保真仿真（如 OpenDSS）提供安全、可控的 RL 训练与验证平台，加速 sim-to-real 迁移。
+\end{enumerate}
+
+\section{对本课题的落地建议}
+
+\subsection{推荐架构：RL 与优化分工的混合主从博弈}
+结合离网高速充电站的硬约束特性与用户行为复杂性，建议采用\textbf{“上层优化定价 + 下层 RL 用户响应 + 安全层兜底”}的混合架构：
+\begin{itemize}
+  \item \textbf{上层（运营商/领导者）}：用 MILP/MPC 求解储能调度与电价，保证功率自平衡、SOC、终端能量等硬约束，并可输出可解释的影子价格；
+  \item \textbf{下层（EV 用户/跟随者）}：用 SAC/TD3 或 CTDE-MARL 学习用户充放电与 V2G 响应，刻画有限理性与随机行为；
+  \item \textbf{安全层}：在 RL 动作输出后叠加动作投影/校正，确保 SOC 与功率约束；对离网缺额与失负荷设置硬性惩罚；
+  \item \textbf{训练环境}：将现有 OpenDSS 数字孪生模型封装为 Gym/Gymnasium 环境，状态含 SOC/SOH、风光预测、交通流与电价，奖励为日净利润减去退化与惩罚。
+\end{itemize}
+
+\subsection{实施步骤}
+\begin{enumerate}
+  \item \textbf{基线搭建}：以现有规则策略与 MPC 策略作为 baseline，建立统一评测指标（日净利润、失负荷率、弃电率、EV 满足率、SOH 衰减）；
+  \item \textbf{环境封装}：将 OpenDSS 逐时步仿真封装为 RL 环境，定义状态/动作/奖励；
+  \item \textbf{单智能体验证}：先用 SAC/PPO 学习储能调度，验证 RL 在离网约束下的可行性与收益；
+  \item \textbf{多智能体扩展}：引入用户/多充电站智能体，采用 CTDE（MAPPO/QMIX）求解博弈；
+  \item \textbf{安全增强}：加入安全层或 RL-MPC 混合，消除约束违反；
+  \item \textbf{对比分析}：RL vs MPC vs 混合架构，在确定性/随机/极端场景下对比经济性、可靠性与鲁棒性。
+\end{enumerate}
+
+\subsection{预期贡献}
+\begin{itemize}
+  \item 提出面向\textbf{离网}高速充电站的 RL—主从博弈混合调度框架，弥补纯 RL 约束不可控的缺陷；
+  \item 用\textbf{安全强化学习}保证离网功率自平衡与 SOC 约束，提升工程可用性；
+  \item 以\textbf{数字孪生}为训练与验证环境，形成可复现的评测基准。
+\end{itemize}
+
+\section*{参考文献}
+\addcontentsline{toc}{section}{参考文献}
+\begin{thebibliography}{99}\small
+\bibitem{ref1} An introduction to deep reinforcement learning[J]. Foundations and Trends in Machine Learning, 2018, 11(3-4): 219--354. DOI:10.1561/2200000071.
+\bibitem{ref2} Optimal self-consumption scheduling of highway electric vehicle charging station based on multi-agent deep reinforcement learning[J]. Renewable Energy, 2024, 237: 121982. DOI:10.1016/j.renene.2024.121982.
+\bibitem{ref3} Cooperative management for PV/ESS-enabled electric vehicle charging stations: A multiagent deep reinforcement learning approach[J]. IEEE Transactions on Industrial Informatics, 2019, 16(5): 3493--3503. DOI:10.1109/TII.2019.2944183.
+\bibitem{ref4} Multi-agent deep reinforcement learning approach for EV charging scheduling in a smart grid[J]. Applied Energy, 2022, 328: 120111. DOI:10.1016/j.apenergy.2022.120111.
+\bibitem{ref5} Effective charging planning based on deep reinforcement learning for electric vehicles[J]. IEEE Transactions on Intelligent Transportation Systems, 2020, 22(1): 542--554. DOI:10.1109/TITS.2020.3002271.
+\bibitem{ref6} Multistep multiagent reinforcement learning for optimal energy schedule strategy of charging stations in smart grid[J]. IEEE Transactions on Cybernetics, 2022, 53(7): 4292--4305. DOI:10.1109/TCYB.2022.3165074.
+\bibitem{ref7} Reinforced model predictive control (RL-MPC) for building energy management[J]. Applied Energy, 2022, 309: 118346. DOI:10.1016/j.apenergy.2021.118346.
+\bibitem{ref8} Secure energy management of multi-energy microgrid: A physical-informed safe reinforcement learning approach[J]. Applied Energy, 2023, 335: 120759. DOI:10.1016/j.apenergy.2023.120759.
+\bibitem{ref9} Multi-agent safe policy learning for power management of networked microgrids[J]. IEEE Transactions on Smart Grid, 2020, 12(2): 1048--1062. DOI:10.1109/TSG.2020.3034827.
+\bibitem{ref10} Decentralized multi-agent based energy management of microgrid using reinforcement learning[J]. International Journal of Electrical Power \& Energy Systems, 2020, 122: 106211. DOI:10.1016/j.ijepes.2020.106211.
+\bibitem{ref11} Deep reinforcement learning for energy management in a microgrid with flexible demand[J]. Sustainable Energy, Grids and Networks, 2020, 24: 100413. DOI:10.1016/j.segan.2020.100413.
+\bibitem{ref12} Dynamic pricing and energy management for profit maximization in multiple smart electric vehicle charging stations: A privacy-preserving deep reinforcement learning approach[J]. Applied Energy, 2021, 304: 117754. DOI:10.1016/j.apenergy.2021.117754.
+\bibitem{ref13} Application of game theory in integrated energy system: A review[J]. IEEE Access, 2020, 8: 93380--93396. DOI:10.1109/ACCESS.2020.2994133.
+\bibitem{ref14} A soft actor-critic reinforcement learning framework for optimal energy management in electric vehicles with hybrid storage[J]. Journal of Energy Storage, 2024, 98: 113344. DOI:10.1016/j.est.2024.113344.
+\bibitem{ref15} Duck curve aware dynamic pricing and battery scheduling strategy using reinforcement learning[J]. IEEE Transactions on Smart Grid, 2023, 15(1): 457--469. DOI:10.1109/TSG.2023.3288355.
+\bibitem{ref16} Optimal electric vehicle charging strategy with Markov decision process and reinforcement learning technique[J]. IEEE Transactions on Industry Applications, 2020, 56(5): 5811--5823. DOI:10.1109/TIA.2020.2990096.
+\bibitem{ref17} Electric vehicle charging management based on deep reinforcement learning[J]. Journal of Modern Power Systems and Clean Energy, 2022, 10(3): 719--730. DOI:10.35833/MPCE.2020.000460.
+\bibitem{ref18} A multiagent federated reinforcement learning approach for plug-in electric vehicle fleet charging coordination in a residential community[J]. IEEE Access, 2022, 10: 98535--98548. DOI:10.1109/ACCESS.2022.3206020.
+\bibitem{ref19} A multi-agent reinforcement learning-based data-driven method for home energy management[J]. IEEE Transactions on Smart Grid, 2020, 11(4): 3201--3211. DOI:10.1109/TSG.2020.2971427.
+\bibitem{ref20} Multi-agent deep reinforcement learning based distributed control architecture for interconnected multi-energy microgrid energy management and optimization[J]. Energy Conversion and Management, 2023, 277: 116647. DOI:10.1016/j.enconman.2022.116647.
+\bibitem{ref21} Multi-energy management of interconnected multi-microgrid system using multi-agent deep reinforcement learning[J]. Journal of Modern Power Systems and Clean Energy, 2023, 11(6): 1811--1821. DOI:10.35833/MPCE.2022.000473.
+\bibitem{ref22} An optimized decision model for electric vehicle aggregator participation in the electricity market based on the Stackelberg game[J]. Sustainability, 2023, 15(20): 15127. DOI:10.3390/su152015127.
+\bibitem{ref23} Reinforcement learning and its applications in modern power and energy systems: A review[J]. Journal of Modern Power Systems and Clean Energy, 2020, 8(6): 1029--1042. DOI:10.35833/MPCE.2020.000552.
+\bibitem{ref24} Applications of reinforcement learning in energy systems[J]. Renewable and Sustainable Energy Reviews, 2020, 137: 110618. DOI:10.1016/j.rser.2020.110618.
+\bibitem{ref25} Optimal priority rule-enhanced deep reinforcement learning for charging scheduling in an electric vehicle battery swapping station[J]. IEEE Transactions on Smart Grid, 2023, 14(5): 4011--4021. DOI:10.1109/TSG.2023.3250505.
+\bibitem{ref26} Fuzzy Q-learning for multi-agent decentralized energy management in microgrids[J]. Applied Energy, 2018, 219: 53--67. DOI:10.1016/j.apenergy.2018.03.017.
+\bibitem{ref27} Virtual power plant containing electric vehicles scheduling strategies based on deep reinforcement learning[J]. Electric Power Systems Research, 2021, 201: 107714. DOI:10.1016/j.epsr.2021.107714.
+\bibitem{ref28} Multi-agent deep reinforcement learning for distributed energy management and strategy optimization of microgrid market[J]. Sustainable Cities and Society, 2021, 74: 103163. DOI:10.1016/j.scs.2021.103163.
+\bibitem{ref29} Building energy management with reinforcement learning and model predictive control: A survey[J]. IEEE Access, 2022, 10: 23592--23607. DOI:10.1109/ACCESS.2022.3156581.
+\bibitem{ref30} A discount-based time-of-use electricity pricing strategy for demand response with minimum information using reinforcement learning[J]. IEEE Access, 2022, 10: 49889--49902. DOI:10.1109/ACCESS.2022.3175839.
+\end{thebibliography}
+
+\end{document}
