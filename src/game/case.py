@@ -45,6 +45,7 @@ class EVUser:
     energy_max_kwh: float            # 当日最大期望充电量
     available: Tuple[int, ...]       # 可用时段集合 (0-based)
     max_power_kw: float              # 单时段最大充电功率
+    energy_min_kwh: float = 0.0      # 当日最低服务需求，默认允许完全弹性
 
 
 @dataclass

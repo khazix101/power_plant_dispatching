@@ -15,6 +15,9 @@ build/
 # Reference materials (not part of the deliverable)
 自留cg/
 
+# Local / potentially sensitive real datasets
+Dataset/
+
 # Simulation outputs (auto-generated)
 output/
 

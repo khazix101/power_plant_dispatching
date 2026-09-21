@@ -83,12 +83,14 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
     # ── 跟随者变量 ──────────────────────────────────────
     m.e = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)
     m.eik = pyo.Var(m.I, m.T, m.K, domain=pyo.NonNegativeReals)
-    m.lam = pyo.Var(m.I, domain=pyo.NonNegativeReals)   # 总量约束对偶 γ_i
+    m.lam = pyo.Var(m.I, domain=pyo.NonNegativeReals)   # 总量上限对偶 γ_i
+    m.alpha = pyo.Var(m.I, domain=pyo.NonNegativeReals) # 总量下限对偶 α_i
     m.mu = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)   # 下界对偶
     m.nu = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)   # 上界对偶
     m.a = pyo.Var(m.I, m.T, domain=pyo.Binary)              # e=0 指示
     m.b = pyo.Var(m.I, m.T, domain=pyo.Binary)              # e=e_max 指示
     m.c = pyo.Var(m.I, domain=pyo.Binary)                   # 总量饱和指示
+    m.d = pyo.Var(m.I, domain=pyo.Binary)                   # 总量下限指示
 
     # ── 领导者约束 ──────────────────────────────────────
     m.price_select = pyo.Constraint(
@@ -130,10 +132,15 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
         m.I,
         rule=lambda m, i: sum(m.e[i, t] for t in m.T) <= case.users[i].energy_max_kwh,
     )
-    # 平稳性: (p_t − v_i) − μ_{i,t} + ν_{i,t} + γ_i = 0
+    m.energy_min = pyo.Constraint(
+        m.I,
+        rule=lambda m, i: sum(m.e[i, t] for t in m.T) >= case.users[i].energy_min_kwh,
+    )
+    # 平稳性: (p_t − v_i) − α_i + γ_i − μ_{i,t} + ν_{i,t} = 0
     def _stationarity(m, i, t):
         p_t = sum(case.price_levels[k] * m.z[t, k] for k in m.K)
-        return p_t - case.users[i].value_per_kwh - m.mu[i, t] + m.nu[i, t] + m.lam[i] == 0
+        return (p_t - case.users[i].value_per_kwh - m.alpha[i]
+                - m.mu[i, t] + m.nu[i, t] + m.lam[i] == 0)
     m.stationarity = pyo.Constraint(m.I, m.T, rule=_stationarity)
 
     # 互补松弛 (大 M)
@@ -160,6 +167,15 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
     )
     m.comp_g2 = pyo.Constraint(
         m.I, rule=lambda m, i: m.lam[i] <= BIG_M * m.c[i]
+    )
+    # 总量下限互补: α_i (Σe − E_min) = 0
+    m.comp_d1 = pyo.Constraint(
+        m.I,
+        rule=lambda m, i: sum(m.e[i, t] for t in m.T)
+        <= case.users[i].energy_min_kwh + BIG_M_ENERGY * (1 - m.d[i]),
+    )
+    m.comp_d2 = pyo.Constraint(
+        m.I, rule=lambda m, i: m.alpha[i] <= BIG_M * m.d[i]
     )
 
     # ── 目标双线性项线性化 ──────────────────────────────

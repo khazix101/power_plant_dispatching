@@ -4,6 +4,8 @@ from src.game.case import GameCase, EVUser, BatteryParams, build_small_case
 from src.game.equilibrium import solve_equilibrium
 from src.game.follower import solve_follower_response, follower_cost
 from src.game.baseline import run_fixed_price_baseline
+from src.game.forecast import ForecastBundle
+from src.game.rolling import RollingDecision, RollingSFSEController
 
 __all__ = [
     "GameCase",
@@ -14,4 +16,7 @@ __all__ = [
     "solve_follower_response",
     "follower_cost",
     "run_fixed_price_baseline",
+    "ForecastBundle",
+    "RollingDecision",
+    "RollingSFSEController",
 ]

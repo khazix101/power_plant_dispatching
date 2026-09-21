@@ -48,6 +48,10 @@ def solve_follower_response(case: GameCase, prices, prefer=None):
         m.I,
         rule=lambda m, i: sum(m.e[i, t] for t in m.T) <= case.users[i].energy_max_kwh,
     )
+    m.energy_min = pyo.Constraint(
+        m.I,
+        rule=lambda m, i: sum(m.e[i, t] for t in m.T) >= case.users[i].energy_min_kwh,
+    )
     # 用户效用 = Σ (v_i − p_t) e_{i,t}
     m.obj = pyo.Objective(
         expr=sum((case.users[i].value_per_kwh - prices[t]) * m.e[i, t]
