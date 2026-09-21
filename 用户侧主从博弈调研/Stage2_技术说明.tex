@@ -1,0 +1,146 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\newtheorem{proposition}{命题}
+\newtheorem{assumption}{假设}
+\theoremstyle{remark}
+\newtheorem*{remark}{注}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small SFSE 阶段二技术说明}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}安全可行主从博弈均衡\\阶段二技术说明}\\[6pt]
+\large BRI 求解器、结构化安全层与理论命题}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}
+\small
+\textbf{摘要：}本说明报告“安全可行主从博弈均衡（SFSE）”研究的第二阶段成果：给出下层 KKT 单层化 MILP 的精确模型、最佳反应迭代（BRI）求解器、结构化安全投影层，并给出均衡存在性、安全投影可行性与 BRI 收敛性的命题与证明提纲。数值实验表明：在 6 时段/3 用户小算例上，MILP 与多起点 BRI 均求得同一均衡（净利润 415.66 元，间隙 0），安全层对 40 组随机请求的可行率为 100\% 且满足幂等性，随机扰动场景下均衡存在率为 100\%。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{模型与记号}
+
+\subsection{领导者（微网运营商）}
+决策变量：电价档位选择 $z_{t,k}\in\{0,1\}$（$\sum_k z_{t,k}=1$，对应电价 $p_t=\sum_k P_k z_{t,k}$）、储能充放功率 $P^{ch}_t,P^{dis}_t\ge0$、充放电状态 $u_t\in\{0,1\}$、失负荷 $sh_t\ge0$、弃电 $cu_t\ge0$、荷电状态 $SOC_t$。目标：
+\begin{equation}
+\max\ \Pi=\underbrace{\sum_{t}\sum_{i} p_t e_{i,t}}_{\text{售电收入}}
+-\underbrace{c_{deg}\sum_t(P^{ch}_t+P^{dis}_t)\Delta t}_{\text{退化}}
+-\underbrace{\alpha\sum_t sh_t\Delta t-\beta\sum_t cu_t\Delta t}_{\text{可靠性/弃电}}
+\end{equation}
+约束：离网功率平衡、SOC 动态与界、终端 SOC、充放电互斥、电价档位。
+
+\subsection{跟随者（EV 用户，价格弹性）}
+\begin{equation}
+\max_{e_i\ge0}\ \sum_{t}\big(v_i-p_t\big)e_{i,t}
+\quad\text{s.t.}\quad \sum_t e_{i,t}\le E_i^{\max},\ \ 0\le e_{i,t}\le e_i^{\max}.
+\end{equation}
+
+\subsection{安全可行均衡}
+\begin{equation}
+(x^*,y^*):\quad y^*\in BR(x^*),\quad x^*\in\arg\max_{x\in\mathcal{X}} \Pi\big(x,BR(x)\big)\ \ \text{s.t.}\ G(x,BR(x))\le0,
+\end{equation}
+其中 $G\le0$ 为离网物理约束（功率平衡、SOC、母线安全）。
+
+\section{命题与证明}
+
+\begin{assumption}\label{as:compact}
+电价档位有限且 $\sum_k z_{t,k}=1$；储能功率与容量有界；新能源/负荷有限。
+\end{assumption}
+
+\begin{proposition}[均衡存在性]\label{prop:exist}
+在假设 \ref{as:compact} 下，若离网约束集 $G\le0$ 允许以失负荷/弃电松弛，则 SFSE 均衡存在。
+\end{proposition}
+
+\begin{proof}[证明提纲]
+对任意固定电价 $p$，跟随者可行集 $\{e_i\ge0:\ \sum_t e_{i,t}\le E_i^{\max},\ e_{i,t}\le e_i^{\max}\}$ 非空（$e_i=0$ 可行）且紧，故线性目标在紧集上取得最大值，$BR(p)\neq\emptyset$。领导者侧对任意 $p$ 与 $e\in BR(p)$，均可以 $sh_t,cu_t\ge0$ 补足功率平衡，故可行集非空。又由假设 \ref{as:compact} 全部决策变量有界，可行集为有限个闭集的并，故为紧集；目标 $\Pi$ 连续。连续函数在非空紧集上取得最大值，故均衡存在。\end{proof}
+
+\begin{proposition}[安全投影的可行性与幂等性]\label{prop:safe}
+设可行集 $\mathcal{G}$ 为线性（仿射）约束定义的非空闭凸集。定义投影
+$\Pi_{\mathcal{G}}(a)=\arg\min_{y\in\mathcal{G}}\ \|y-a\|_1+\rho(y)$，
+其中 $\rho\ge0$ 为松弛惩罚。则 $\Pi_{\mathcal{G}}(a)\in\mathcal{G}$ 恒成立；且当 $a\in\mathcal{G}$ 时 $\Pi_{\mathcal{G}}(a)=a$（幂等）。
+\end{proposition}
+
+\begin{proof}
+$\mathcal{G}$ 非空闭凸，目标函数连续且强制（coercive，因 $\|y-a\|_1\to\infty$ 当 $\|y\|\to\infty$），故极小点存在。任取极小点 $y^*$，由可行性 $y^*\in\mathcal{G}$，得第一部分。若 $a\in\mathcal{G}$，取 $y=a$ 得目标值 $\rho(a)$；对任意 $y\in\mathcal{G}$，$\|y-a\|_1+\rho(y)\ge\rho(a)$ 当 $\rho$ 取非负松弛惩罚（在可行点上 $\rho=0$）时成立，故 $a$ 为极小点，$\Pi_{\mathcal{G}}(a)=a$。
+\end{proof}
+
+\begin{remark}
+在实现中，$\rho$ 对失负荷/弃电/削减 EV 施加正权重，并以微小吞吐惩罚 $W_{thru}>0$ 消除同时充放电的平局，保证投影点唯一。
+\end{remark}
+
+\begin{proposition}[BRI 的终止与不动点]\label{prop:bri}
+电价档位有限，目标 $\Pi$ 有上界。坐标上升式 BRI 每接受一次单坐标移动即严格增大 $\Pi$（阈值 $\varepsilon>0$），故在有限步内终止；终止时的电价向量为不动点（不存在改进的单坐标移动）。
+\end{proposition}
+
+\begin{proof}
+$\Pi$ 在有限离散电价空间上有上界；每次接受的移动使 $\Pi$ 至少增加 $\varepsilon$，故接受次数有限。终止时所有单坐标候选均不使 $\Pi$ 增大超过 $\varepsilon$，即不动点。
+\end{proof}
+
+\section{求解算法与数值验证}
+
+\subsection{算法}
+\begin{enumerate}
+  \item \textbf{MILP（精确）}：下层 KKT（平稳性 + 互补松弛）用大 M 线性化，目标双线性项 $p_t e_{i,t}$ 由电价档位选择精确线性化为 $\sum_k P_k e_{i,t,k}$，得单层 MILP，由 HiGHS/Gurobi 求解。
+  \item \textbf{BRI（启发式）}：坐标上升最佳反应迭代，多起点取最优。
+  \item \textbf{安全层}：对任意请求动作求解 $\Pi_{\mathcal{G}}$，输出严格可行解。
+\end{enumerate}
+
+\begin{remark}[大 M 取值的数值陷阱]
+能量上限互补 $\gamma_i(E_i^{\max}-\sum_t e_{i,t})=0$ 的线性化 $\sum_t e_{i,t}\ge E_i^{\max}-M(1-c_i)$ 中，若 $M<E_i^{\max}$，则当 $c_i=0$ 时错误要求 $\sum_t e_{i,t}\ge E_i^{\max}-M$，会切除未饱和用户的可行响应，导致 MILP 漏解。本工作取 $M=10^4\gg E_i^{\max}$ 后，MILP 与 BRI 最优值完全一致。
+\end{remark}
+
+\subsection{数值结果}
+\begin{table}[htbp]
+\centering
+\small
+\caption{阶段二数值验证结果（6 时段 / 3 用户小算例）}
+\begin{tabular}{p{5.4cm} p{5.4cm} p{4.0cm}}
+\toprule
+\textbf{项目} & \textbf{结果} & \textbf{结论}\\
+\midrule
+MILP 均衡净利润 & 415.66 元（1.15 s） & 精确真解\\
+多起点 BRI 净利润 & 415.66 元（26.2 s，8 起点） & 间隙 $0.0000\%$\\
+安全层随机请求可行率 & 100\%（40/40） & 命题 \ref{prop:safe} 成立\\
+安全层幂等偏差 & $0.0$ & 幂等性成立\\
+命题 \ref{prop:exist} 存在性 & 12/12（100\%） & 扰动场景均存在均衡\\
+命题 \ref{prop:bri} 不动点率 & 3/3（100\%） & BRI 均终止于不动点\\
+多起点最优收益极差 & $0.0$ & 近全局一致\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结论与下一步}
+阶段二完成了精确求解器、可扩展启发式与安全层，并给出三条命题的证明提纲与数值验证。MILP 在小规模上精确且快；BRI 在当前规模较慢，但按时间维度分解，随 $T$ 增大其单轮代价线性增长，而 MILP 规模指数增长，故 BRI 的可扩展性将在全尺寸场景中体现。下一步（阶段三）将引入\textbf{可微最佳反应代理}与\textbf{安全强化学习}，在保持可行性的同时实现数量级加速。
+
+\end{document}

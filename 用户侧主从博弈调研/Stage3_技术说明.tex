@@ -1,0 +1,129 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small SFSE 阶段三技术说明}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}安全可行主从博弈均衡\\阶段三技术说明}\\[6pt]
+\large 可微最佳反应代理与安全强化学习加速}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\sloppy
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}
+\small
+\textbf{摘要：}本说明报告 SFSE 研究第三阶段成果。阶段三在阶段二（精确 MILP、BRI、安全层）基础上，引入两类加速方法：(1) \textbf{可微最佳反应代理}——用神经网络学习下层 EV 响应映射 $p\mapsto E(p)$，响应推理较 LP 加速约 425 倍；(2) \textbf{安全强化学习定价策略}——用 MILP 示范数据行为克隆预训练、再用 actor-critic 微调，学习"场景$\to$电价"映射，策略与安全层联合部署。测试场景上，RL 策略相对 MILP 最优的净利润间隙仅 $-1.24\%$，可行率 100\%，端到端决策加速约 7 倍。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{阶段三计划}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{阶段三任务分解}
+\begin{tabular}{p{2.6cm} p{6.2cm} p{4.6cm}}
+\toprule
+\textbf{任务} & \textbf{内容} & \textbf{产出}\\
+\midrule
+可微最佳反应代理 & 学习 $p\mapsto E(p)$，替代下层 LP，提供梯度 & \texttt{surrogate.py}\\
+场景定价环境 & 随机场景采样 + 跟随者响应 + 安全投影 + 奖励 & \texttt{env.py}\\
+安全强化学习 & 策略梯度学习场景$\to$电价，安全层保证可行 & \texttt{rl.py}\\
+基准与加速对比 & RL vs MILP: 收益/时间/可行率 & \texttt{run\_stage3.py}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{组件一：可微最佳反应代理}
+
+\subsection{方法}
+在随机电价向量上调用精确跟随者 LP 生成数据集 $\{(p^{(n)},E^{(n)})\}$，训练 MLP 拟合 $p\mapsto E$。该代理可用于内循环加速，并提供关于电价的梯度，为端到端可微优化奠基。
+
+\subsection{结果}
+\begin{itemize}
+  \item 训练样本 1200 条，测试集 MAE $=8.97$ kWh，相对误差 $13.6\%$（下层响应为阈值型阶跃映射，平滑网络难以完全拟合）；
+  \item 单次响应推理：LP $31.3$ ms $\to$ 代理 $0.074$ ms，加速约 $\mathbf{425\times}$。
+\end{itemize}
+
+\section{组件二：安全强化学习定价策略}
+
+\subsection{问题设定}
+将运营商的场景化定价建模为单步上下文老虎机：状态为场景特征（风光、负荷、用户保留效用与容量），动作为电价向量，奖励为经安全投影后的净利润。
+
+\subsection{训练方法}
+采用"示范预训练 + 策略梯度微调"：
+\begin{enumerate}
+  \item 用 120 个随机场景的 \textbf{MILP 最优电价}做示范，行为克隆预训练策略均值（learning-to-optimize）；
+  \item 用 actor-critic（A2C）在环境中微调 400 episodes，熵正则鼓励探索；
+  \item 部署时策略输出电价，经跟随者响应与\textbf{安全投影层}得到严格可行调度。
+\end{enumerate}
+
+\subsection{结果}
+\begin{table}[htbp]
+\centering
+\small
+\caption{测试场景对比（15 个随机场景）}
+\begin{tabular}{p{4.2cm} p{3.6cm} p{3.6cm} p{2.8cm}}
+\toprule
+\textbf{方法} & \textbf{平均净利润} & \textbf{单场景耗时} & \textbf{可行率}\\
+\midrule
+MILP（精确） & 433.99 元 & 639.9 ms & 100\%\\
+安全 RL（本方法） & 428.61 元 & 98.2 ms & 100\%\\
+\midrule
+最优性间隙 & $-5.38$ 元（$-1.24\%$） & 加速 $\mathbf{7\times}$ & ---\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{阶段二与阶段三综合结果}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{各方法对比（6 时段 / 3 用户小算例）}
+\begin{tabular}{p{2.7cm} p{2.6cm} p{2.6cm} p{2.7cm} p{2.3cm}}
+\toprule
+\textbf{方法} & \textbf{净利润} & \textbf{时间} & \textbf{可行率} & \textbf{说明}\\
+\midrule
+MILP（KKT+大M） & 415.66 元 & 0.95 s & 100\% & 精确真解\\
+BRI 多起点 & 415.66 元 & 24.9 s & 100\% & 间隙 0\\
+安全层投影 & --- & --- & 100\% & 幂等\\
+安全 RL（跨场景） & $-1.24\%$ & $7\times$ 加速 & 100\% & 场景化定价\\
+代理响应推理 & --- & $425\times$ & --- & $p\mapsto E$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结论与阶段四衔接}
+阶段三实现了两类加速：代理模型将下层响应推理加速约两个数量级；安全 RL 将"场景$\to$电价+调度"的端到端决策加速约 7 倍，且净利润间隙仅 $-1.24\%$、可行率 100\%。代理的相对误差偏高，后续可通过分用户建模、阈值附近加采样与更深的网络进一步降低。阶段四将把方法推广到\textbf{全尺寸数字孪生场景}（24 时段、光伏 3000 kW / 风电 2000 kW / 充电桩 14400 kW / 储能 3750 kW·7500 kWh），完成基线对比（B1--B4）、消融实验与 SOH 耦合，验证方法的可扩展性与多维占优性。
+
+\end{document}

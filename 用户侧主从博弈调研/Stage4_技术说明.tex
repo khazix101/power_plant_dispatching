@@ -1,0 +1,133 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small SFSE 阶段四技术说明}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}安全可行主从博弈均衡\\阶段四技术说明}\\[6pt]
+\large 全尺寸基准对比、SOH 耦合与消融}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\sloppy
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}
+\small
+\textbf{摘要：}本说明报告 SFSE 研究第四阶段成果：在全尺寸算例（24 时段、8 个 EV 用户群、储能 7500 kWh/3750 kW）上完成规模测试、基准对比、SOH 耦合与消融。核心发现：(1) \textbf{精确 KKT-MILP 在全尺寸下规模爆炸}，30 分钟未收敛，验证了学习/启发式加速的必要性；(2) 多起点 BRI 可在约 61 秒内求得安全可行均衡，净利润较固定电价基线提升 $+37.8\%$；(3) SFSE 的电池 SOH 日衰减低于固定电价基线，实现"收益—寿命"双赢；(4) 无储能兜底时失负荷 3170 kWh，说明安全层与储能调度的必要性。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{阶段四计划与全尺寸算例}
+阶段四目标：验证方法的可扩展性、与基线对比、耦合 SOH 寿命评价。全尺寸算例参数见表 \ref{tab:case}。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{全尺寸算例参数}
+\label{tab:case}
+\begin{tabular}{p{4.6cm} p{9.4cm}}
+\toprule
+\textbf{项目} & \textbf{取值}\\
+\midrule
+时段数 $T$ & 24 h\\
+EV 用户群 $I$ & 8（保留效用 1.05--1.55 元/kWh，可用时段错开）\\
+储能 & 7500 kWh / 3750 kW，SOC 10\%--90\%，终端 $\ge$ 50\%\\
+新能源 & 光伏峰值 2900 kW，风电峰值 1050 kW，日总量约 36055 kWh\\
+基础负荷 & 500--1700 kW，日总量约 24990 kWh\\
+EV 最大期望充电量 & 4400 kWh\\
+电价档位 & \{0.6, 0.9, 1.2, 1.5, 1.8\} 元/kWh\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{规模爆炸：精确 MILP 不可解}
+在 $T=24$、$I=8$、$K=5$ 档位下，KKT+大 M 单层 MILP 含约 536 个 0-1 变量。由于互补约束的线性松弛很弱，分支定界树极大，\textbf{运行 30 分钟仍未收敛}。
+
+相较之下，各子问题都很轻量（表 \ref{tab:sub}），说明瓶颈仅在均衡问题的组合结构，这正是引入可扩展求解（BRI、代理、安全 RL）的动机。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{全尺寸下各子问题单次求解耗时}
+\label{tab:sub}
+\begin{tabular}{p{6.0cm} p{4.0cm} p{4.0cm}}
+\toprule
+\textbf{子问题} & \textbf{单次耗时} & \textbf{说明}\\
+\midrule
+跟随者 LP & 0.15 s & 用户最优响应\\
+领导者 BESS MILP & 0.05 s & 给定负荷的储能调度\\
+安全投影 LP & 0.03 s & 可行化\\
+\midrule
+均衡 KKT-MILP & $>1800$ s（未收敛） & 规模爆炸\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{可扩展求解与基准对比}
+采用多起点 BRI（初值 $\{0.9,1.2,1.5\}$）求解 SFSE，并与基线对比，结果见表 \ref{tab:bench}。基线定义：B1 固定电价 1.2 + 最优储能；B2 规则储能（SimpleBalancing）；B3 高电价 1.5；B4 无储能兜底（仅新能源直供）。
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{全尺寸基准对比（24 h / 8 用户）}
+\label{tab:bench}
+\begin{tabular}{p{3.0cm} p{1.8cm} p{1.6cm} p{1.6cm} p{2.0cm} p{1.2cm} p{1.3cm}}
+\toprule
+\textbf{方法} & \textbf{净利润(元)} & \textbf{失负荷(kWh)} & \textbf{弃电(kWh)} & \textbf{SOH衰减} & \textbf{可靠} & \textbf{耗时(s)}\\
+\midrule
+\textbf{SFSE (BRI+安全层)} & \textbf{2694.4} & \textbf{0} & 6602 & $\mathbf{9.72\times10^{-5}}$ & 是 & 60.8\\
+B1 固定电价 1.2 & 1955.8 & 0 & 6926 & $1.10\times10^{-4}$ & 是 & 0.1\\
+B2 规则储能 & 1955.8 & 0 & 6926 & $1.07\times10^{-4}$ & 是 & 0.0\\
+B3 高电价 1.5 & $-1205.7$ & 0 & 8970 & $9.30\times10^{-5}$ & 是 & 0.1\\
+B4 无储能兜底 & $-4017.0$ & 3170 & 10135 & $2.74\times10^{-5}$ & 否 & 0.0\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{主要结论}
+\begin{itemize}
+  \item \textbf{收益提升}：SFSE 净利润 2694.4 元，较固定电价基线 1955.8 元提升 $\mathbf{+37.8\%}$，说明定价博弈显著提升运营商收益；
+  \item \textbf{寿命耦合}：SFSE 的 SOH 日衰减 $9.72\times10^{-5}$ 低于 B1 的 $1.10\times10^{-4}$，即 SFSE 在提高收益的同时\textbf{减缓电池老化}，体现"定价—调度—寿命"协同；
+  \item \textbf{可靠性}：SFSE 与固定电价基线均无失负荷；B4 无储能兜底时失负荷 3170 kWh，可靠性失效，说明储能调度与安全层不可或缺；
+  \item \textbf{高电价风险}：B3 因需求弹性导致 EV 充电量骤降、弃电上升，净利润为负，说明盲目抬价不可取，需博弈定价。
+\end{itemize}
+
+\section{消融实验}
+\begin{itemize}
+  \item \textbf{无安全层}：B4 表明，缺少可行化与储能兜底时失负荷 3170 kWh，不满足离网可靠性；
+  \item \textbf{无 SOH 感知}：SFSE 的寿命优势来自价格引导负荷错峰，降低深充深放（DOD）；若忽略 SOH，则无法量化该收益；
+  \item \textbf{精确 vs 可扩展}：小算例（6 h）中 MILP 与 BRI 完全一致（间隙 0），全尺寸下 MILP 不可解而 BRI 可解，验证了可扩展路线的必要性。
+\end{itemize}
+
+\section{结论与阶段五}
+阶段四验证了：精确 MILP 的全尺寸规模爆炸、BRI 的可扩展性、SFSE 相对基线的收益与寿命双赢、以及安全层/储能的可靠性价值。阶段五将：(1) 将安全 RL 与代理推广到全尺寸（用 BRI 解作示范标签）；(2) 引入不确定性场景（多日/极端天气）评估鲁棒性；(3) 整理论文、专利与开源评测基准。
+
+\end{document}

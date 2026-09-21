@@ -1,0 +1,152 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small SFSE 阶段五技术说明}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}安全可行主从博弈均衡\\阶段五技术说明与项目总结}\\[6pt]
+\large 全尺寸安全 RL、不确定性与极端天气鲁棒性}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\sloppy
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}
+\small
+\textbf{摘要：}本说明报告 SFSE 研究第五阶段成果并总结全项目。阶段五在 24 时段全尺寸算例上，用多起点 BRI 均衡解作为示范标签，训练全尺寸安全 RL 策略；并评估不确定性与极端天气下的鲁棒性。结果：全尺寸安全 RL 相对 BRI 的净利润间隙为 $-13.05\%$，但\textbf{定价决策仅需 0.69 ms}（相对 BRI 约 $4\times10^4$ 倍加速）；在 20 个不确定性场景下，SFSE-BRI 的平均净利润 2043.7 元、最差 $-161.7$ 元，均优于固定电价的 1112.0 元与 $-1800.5$ 元；极端天气下 SFSE 的失负荷（17068/17411 kWh）低于固定电价（19168/19611 kWh）。
+\end{minipage}
+\end{center}
+
+\vspace{0.4cm}
+
+\section{阶段五计划}
+\begin{enumerate}
+  \item 全尺寸安全 RL：以 BRI 均衡解为示范，行为克隆预训练 + A2C 微调；
+  \item 不确定性鲁棒性：风光/负荷/用户扰动下的收益分布与可靠性；
+  \item 极端天气鲁棒性：新能源骤降时的失负荷对比；
+  \item 项目总结与展望。
+\end{enumerate}
+
+\section{全尺寸安全强化学习}
+
+\subsection{方法}
+在全尺寸算例（$T=24$、8 用户群）上采样 20 个随机场景，用多起点 BRI 求示范均衡（共耗时 527 s）；以场景特征为输入、BRI 电价为标签，行为克隆预训练策略均值，再用 A2C 微调 800 episodes。
+
+\subsection{结果}
+\begin{table}[htbp]
+\centering
+\small
+\caption{全尺寸安全 RL vs BRI（4 个测试场景）}
+\begin{tabular}{p{4.4cm} p{4.4cm} p{4.4cm}}
+\toprule
+\textbf{指标} & \textbf{安全 RL} & \textbf{BRI 均衡}\\
+\midrule
+平均净利润 & 1735.2 元 & 1995.5 元\\
+最优性间隙 & \multicolumn{2}{c}{$-13.05\%$}\\
+定价决策时间 & \textbf{0.69 ms} & 27291 ms\\
+决策加速比 & \multicolumn{2}{c}{$\mathbf{3.97\times10^4}$ 倍}\\
+可靠性（安全层） & 100\% & 100\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{不确定性与极端天气鲁棒性}
+
+\subsection{不确定性场景（20 个）}
+\begin{table}[htbp]
+\centering
+\small
+\caption{不确定性场景下的鲁棒性对比}
+\begin{tabular}{p{4.4cm} p{4.6cm} p{4.6cm}}
+\toprule
+\textbf{指标} & \textbf{SFSE-BRI} & \textbf{固定电价 1.2}\\
+\midrule
+平均净利润 & \textbf{2043.7 元} & 1112.0 元\\
+最差净利润 & \textbf{$-161.7$ 元} & $-1800.5$ 元\\
+可靠率（无失负荷） & 65\% & 70\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+SFSE 在平均收益（$+84\%$）与最差情形上均显著优于固定电价；固定电价可靠率略高，是因为其低电价诱导更多负荷、但收益低，属"低价换可靠"的权衡。
+
+\subsection{极端天气（新能源骤降 50\%--75\%）}
+\begin{table}[htbp]
+\centering
+\small
+\caption{极端天气失负荷对比（kWh）}
+\begin{tabular}{p{4.4cm} p{4.4cm} p{4.4cm}}
+\toprule
+\textbf{场景} & \textbf{SFSE-BRI} & \textbf{固定电价 1.2}\\
+\midrule
+极端场景 1 & \textbf{17068} & 19168\\
+极端场景 2 & \textbf{17411} & 19611\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+极端天气下两者都会失负荷（离网系统物理受限），但 SFSE 的失负荷更低，说明博弈定价能通过引导负荷错峰、配合储能减缓缺额。
+
+\section{五阶段项目总结}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{五阶段成果总览}
+\begin{tabular}{p{1.2cm} p{4.4cm} p{5.0cm} p{3.0cm}}
+\toprule
+\textbf{阶段} & \textbf{主题} & \textbf{关键结果} & \textbf{产出}\\
+\midrule
+一 & 小算例 KKT-MILP & 均衡真解 415.66 元 & run\_small\_case\\
+二 & BRI + 安全层 + 命题 & 可行率/存在性 100\%，间隙 0 & Stage2 说明\\
+三 & 代理 + 安全 RL & 代理 425$\times$，RL 间隙 $-1.24\%$ & Stage3 说明\\
+四 & 全尺寸基准 + SOH & 收益 $+37.8\%$，SOH 更低 & Stage4 说明\\
+五 & 全尺寸 RL + 鲁棒性 & 决策 $4\times10^4\times$，极端更优 & 本说明\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{核心贡献}
+\begin{enumerate}
+  \item 提出\textbf{安全可行主从博弈均衡（SFSE）}新问题，将离网物理约束内嵌于均衡可行域；
+  \item 建立\textbf{定价—调度—寿命}三角耦合模型，量化收益与 SOH 的协同；
+  \item 设计\textbf{结构化安全投影层}与\textbf{可微最佳反应代理}，保证可行并实现数量级加速；
+  \item 给出均衡\textbf{存在性、安全性、收敛性}命题与数值验证；
+  \item 揭示精确 MILP 的\textbf{全尺寸规模爆炸}，并给出 BRI/RL 可扩展求解路线。
+\end{enumerate}
+
+\subsection{局限与展望}
+\begin{itemize}
+  \item 全尺寸安全 RL 的间隙（$-13\%$）仍偏大，需更多示范数据或更强的序列建模；
+  \item 随机场景的可靠率偏低，源于离网系统在低新能源时物理受限，可引入需求响应与备用容量；
+  \item 电池退化采用线性化吞吐 + 日历近似，未来可嵌入完整非线性 SOH 模型；
+  \item 下一步：接入真实交通流与数字孪生在线数据，形成闭环在线学习与工程化部署。
+\end{itemize}
+
+\end{document}

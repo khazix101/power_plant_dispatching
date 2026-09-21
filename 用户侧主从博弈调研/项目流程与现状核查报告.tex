@@ -1,0 +1,350 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+\definecolor{lightgray}{RGB}{244,246,249}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 项目流程与现状核查报告}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}离网高速公路充电站\\安全可行主从博弈项目流程与现状核查报告}}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\sloppy
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}
+\small
+\textbf{报告目的：}本报告不是新的算法调研，而是对当前工作区代码、数据和已实现原型的工程核查。报告回答三个问题：项目当前到底实现了什么；真实数据如何进入项目；从当前状态到“真实数据驱动的离网安全可行主从博弈”还缺什么。根据项目接口补充信息，系统已经具备“当前状态 + 过去状态 + 未来 24 小时供能预测/充电负荷预测”的滚动预测输入；项目已经具备 OpenDSS 微网仿真、规则/MPC 储能调度、电池 SOH 经济评价、KKT-MILP 主从博弈原型、BRI、安全投影和安全 RL 原型。当前主要缺口不是预测模块，而是\textbf{预测接口与主从博弈/OpenDSS闭环的统一集成}。
+\end{minipage}
+\end{center}
+
+\section{项目一句话定义}
+
+本项目要解决的问题可以准确表述为：
+
+\begin{quote}
+利用真实高速服务区充电交易数据构建 EV 用户行为和充电负荷模型，结合 ERA5 气象驱动的风光出力模型与 OpenDSS 离网微网数字孪生，研究运营商定价/储能调度与 EV 用户充电响应之间的安全可行主从博弈均衡，并用 BRI、优化和安全强化学习实现快速求解。
+\end{quote}
+
+这里有四个层次，不能混为一谈：
+\begin{enumerate}
+  \item \textbf{真实数据层}：交易、充电时间、电量、费用、天气和异常状态；
+  \item \textbf{用户行为层}：到达、充电量、充电时长、价格响应和主动停止；
+  \item \textbf{物理仿真层}：风光、储能、充电负荷、母线、电压和功率平衡；
+  \item \textbf{决策求解层}：主从博弈、BRI、安全投影和 RL。
+\end{enumerate}
+
+\section{当前代码的真实流程}
+
+\subsection{已接入的主流程：\texttt{src/main.py}}
+
+当前正式入口是：
+
+\begin{verbatim}
+python src/main.py --data data/ --model model/master.dss \\
+                   --output output/ --strategy simple_balancing
+\end{verbatim}
+
+实际执行顺序为：
+
+\begin{enumerate}
+  \item 从 \texttt{data/} 读取 A/B/C/D/E 文件；
+  \item 将 A/B/C 分别解释为风电、光伏、充电负荷 24 小时数据；
+  \item 编译 \texttt{model/master.dss}；
+  \item 初始化 7500 kWh、3750 kW 储能和电池 SOH 分组管理器；
+  \item 每小时构造 \texttt{DispatchContext}；
+  \item 由场景调度器或固定策略计算储能功率；
+  \item 将光伏、风电、负荷、储能功率写入 OpenDSS，求解快照潮流；
+  \item 记录母线电压、Vsource 功率、线路损耗和功率平衡；
+  \item 24 小时结束后计算日历老化、循环老化、SOH 和电池成本；
+  \item 计算日净利润并写入 \texttt{output/}。
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=5mm,
+  font=\small,
+  box/.style={rectangle,rounded corners,draw=mainblue,thick,fill=lightgray,text width=2.35cm,minimum height=0.85cm,align=center},
+  ar/.style={-{Stealth[length=2.3mm]},thick,mainblue}
+]
+\node[box] (data) {当前状态、历史状态\\未来24小时预测};
+\node[box,right=8mm of data] (dispatch) {主从博弈\\BRI / RL / MPC};
+\node[box,right=8mm of dispatch] (dss) {OpenDSS\\滚动快照潮流};
+\node[box,below=8mm of dss] (aging) {电池 SOH\\老化与安全约束};
+\node[box,left=8mm of aging] (eco) {经济评价\\收入、成本、净利润};
+\draw[ar] (data) -- (dispatch);
+\draw[ar] (dispatch) -- (dss);
+\draw[ar] (dss) -- (aging);
+\draw[ar] (aging) -- (eco);
+\draw[ar] (eco) -- ++(-5.1,0) |- (data);
+\end{tikzpicture}
+\caption{当前已接入主仿真流程}
+\end{figure}
+
+\subsection{当前场景调度器}
+
+\texttt{ScenarioDispatcher} 的逻辑是：
+
+\begin{enumerate}
+  \item 按日期缓存日级场景，例如节假日、季节；
+  \item 每小时重新判断小时级场景，例如低 SOC、高 SOC、峰负荷、新能源不足；
+  \item 选优先级最高的基策略执行 \texttt{compute()}；
+  \item 再按优先级执行修正策略 \texttt{adjust()}；
+  \item 输出储能功率和更新后的 SOC。
+\end{enumerate}
+
+当前策略包括：\texttt{SimpleBalancing}、\texttt{PeakShaving}、\texttt{ValleyFilling}、\texttt{RenewableAbsorb}、\texttt{SummerPeakStrategy}、\texttt{HolidayStrategy}、SOC 安全修正和极端天气停机等。
+
+这部分是\textbf{规则/策略流水线}，不是主从博弈。它适合作为基线和安全兜底，不等于运营商—用户均衡求解器。
+
+\subsection{预测接口带来的实际变化}
+
+项目当前还有一个由其他模块负责的滚动预测接口，调度模块实际可获得：
+
+\begin{itemize}
+  \item 当前时刻的储能 SOC、SOH、风光出力、充电负荷和设备状态；
+  \item 过去一段时间的状态与预测误差相关信息；
+  \item 从当前时刻起未来 24 小时的供能预测；
+  \item 从当前时刻起未来 24 小时的充电负荷预测。
+\end{itemize}
+
+这意味着项目不是“用一组静态 24 小时曲线做一次性优化”，而可以实现滚动时域控制：每个时刻重新求解未来 24 小时的安全可行主从博弈，只执行当前时段的电价/储能动作，然后进入下一时刻。
+
+令当前时刻为 $t$，预测窗口为 $\mathcal{H}_t=\{t,t+1,\ldots,t+23\}$，则领导者问题可以写成：
+
+\begin{equation}
+\max_{x_{t:t+23},y_{t:t+23}}
+\mathbb{E}\left[\sum_{\tau\in\mathcal{H}_t} \Pi_\tau\right]
+\quad\text{s.t.}\quad
+y_{t:t+23}\in BR(x_{t:t+23}),\quad
+G(x_{t:t+23},y_{t:t+23},s_t)\le 0,
+\end{equation}
+
+其中 $s_t$ 是当前真实状态，$x$ 包含未来 24 小时价格和储能计划，$y$ 是 EV 用户响应，$G$ 包含功率平衡、SOC、端部 SOC 和可靠性约束。求解后只执行 $t$ 时刻动作，下一时刻用新状态和新预测重新求解。这正是\textbf{预测驱动的滚动 SFSE}，比静态日 ahead 算例更接近工程调度。
+
+\section{OpenDSS 物理模型的实际含义}
+
+\texttt{model/master.dss} 建立了：
+
+\begin{itemize}
+  \item 0.4 kV、50 Hz 三相微网；
+  \item 光伏支路：额定 3000 kW；
+  \item 风电支路：额定 2000 kW；
+  \item 充电负荷支路：上限 14400 kW；
+  \item 储能支路：3750 kW / 7500 kWh，充放电效率 95\%。
+\end{itemize}
+
+代码通过以下接口控制模型：
+
+\begin{itemize}
+  \item \texttt{set\_power()}：设置光伏、风电、EV 负荷和储能功率；
+  \item \texttt{solve()}：求解当前快照潮流；
+  \item \texttt{get\_main\_bus\_voltage()}：获取主母线电压；
+  \item \texttt{get\_source\_power\_kw()}：获取 Vsource 功率；
+  \item \texttt{get\_line\_losses\_kw()}：获取线路损耗。
+\end{itemize}
+
+需要特别明确：OpenDSS 模型仍然使用 Vsource 作为参考节点。项目用“Vsource 功率接近零”来判断离网功率是否平衡，但这并不等于已经实现了严格的电气孤岛控制。若要成为严格的离网研究，需要进一步明确：
+
+\begin{itemize}
+  \item Vsource 是否允许承担缺额；
+  \item 缺额如何映射为失负荷；
+  \item 电压和频率由谁维持；
+  \item 储能是否具有 grid-forming 能力；
+  \item OpenDSS 中是否配置了真正的孤岛开关和控制模式。
+\end{itemize}
+
+因此，当前模型是\textbf{离网运行约束的数字孪生原型}，还不是完整的孤岛电气控制模型。
+
+\section{电池 SOH 与经济评价流程}
+
+当前电池链路是完整接入的：
+
+\begin{center}
+\small
+每小时储能功率/SOC
+$\rightarrow$
+日历老化+循环老化
+$\rightarrow$
+SOH 更新
+$\rightarrow$
+组迁移/退役
+$\rightarrow$
+电池成本与净利润
+\end{center}
+
+当前实现包括：
+
+\begin{itemize}
+  \item G1/G2/G3 三个 SOH 分组；
+  \item SOC 相关日历老化率；
+  \item 吞吐量和 DOD 相关循环老化；
+  \item SOH 低于阈值后的组迁移；
+  \item SOH 低于 70\% 的退役与置换成本；
+  \item 日净利润、累计利润和置换支出统计。
+\end{itemize}
+
+这一部分是项目目前最完整的“寿命—经济”闭环。需要注意的是，SOH 目前主要在调度后评价和 MPC 成本中使用，尚未系统地作为主从博弈状态和用户价格响应的共同状态变量。
+
+\section{后续新增的主从博弈/RL流程}
+
+\subsection{\texttt{src/game/} 与主仿真的关系}
+
+\texttt{src/game/} 当前包含 18 个模块，但它们目前是\textbf{独立原型链路}，尚未被 \texttt{src/main.py} 调用。
+
+主要模块关系为：
+
+\begin{itemize}
+  \item \texttt{case.py}：6 时段小算例和 24 时段全尺寸算例；
+  \item \texttt{follower.py}：价格弹性 EV 用户 LP；
+  \item \texttt{equilibrium.py}：下层 KKT + 大 M 单层 MILP；
+  \item \texttt{bri.py}：多起点坐标式最佳反应迭代；
+  \item \texttt{safety.py}：功率平衡、SOC、弃电/失负荷和 EV 削减投影；
+  \item \texttt{surrogate.py}：价格到 EV 负荷的神经网络代理；
+  \item \texttt{env.py}：随机场景和奖励环境；
+  \item \texttt{rl.py}：示范预训练和 A2C 策略微调；
+  \item \texttt{soh.py}：独立 SOH 轨迹评价；
+  \item \texttt{run\_stage1--5.py}：各阶段原型实验入口。
+\end{itemize}
+
+\subsection{博弈模型的实际定义}
+
+运营商领导者：
+
+\begin{itemize}
+  \item 决定离散电价；
+  \item 决定储能充放电；
+  \item 承担弃电、失负荷和退化成本；
+  \item 最大化充电收入减去运行成本。
+\end{itemize}
+
+EV 用户跟随者：
+
+\begin{equation}
+\max_{e_i}\sum_t(v_i-p_t)e_{i,t}
+\end{equation}
+
+其中 $v_i$ 是用户每 kWh 的保留效用，$e_{i,t}$ 受可用时段、单时段功率和每日最大需求约束。
+
+当前博弈原型的用户模型是\textbf{价格弹性需求模型}，还不是从真实 \texttt{Dataset/Charging\_Data.csv} 估计出来的用户模型。
+
+\section{真实 Dataset 当前所处位置}
+
+当前真实数据目录包括：
+
+\begin{longtable}{p{4.0cm} p{3.1cm} p{6.2cm}}
+\toprule
+\textbf{文件} & \textbf{规模} & \textbf{当前作用}\\
+\midrule
+\texttt{Charging\_Data.csv} & 441077 条 & 尚未接入主流程；可用于高速服务区 EV 行为与负荷标定\\
+\texttt{Weather\_Data.csv} & 2232 条 & 尚未接入 ERA5/风光出力链路；可用于温度、湿度、降水校准\\
+\texttt{TOU\_Price.csv} & 7 个时段 & 尚未接入主从博弈价格模型；可作为真实 TOU 价格基线\\
+\bottomrule
+\end{longtable}
+
+高速服务区子集已经确认具有较高价值：
+
+\begin{itemize}
+  \item 77,663 条记录；
+  \item 16 个充电桩；
+  \item 31,140 个用户；
+  \item 732 个活跃日期；
+  \item 3 个高速服务区；
+  \item 数据时间覆盖 2019-12-31 至 2021-12-31；
+  \item 天气数据按 Xiuzhou 区域匹配率 100\%。
+\end{itemize}
+
+但 Dataset 尚未进入 \texttt{src/data/loader.py}。当前 loader 只认识 \texttt{data/A.csv--E.csv} 的 24 小时预测格式；另一方面，项目已有独立的未来 24 小时供能/充电负荷预测接口，但尚未在当前代码中与 \texttt{src/game/} 统一。因此现阶段存在的主要问题是\textbf{接口集成和状态定义不统一}，而不是缺少未来预测能力：
+
+\begin{quote}
+真实交易数据已经被发现和分析，但还没有被清洗、聚合、参数化并注入预测接口和博弈环境；已有预测模块也尚未被统一包装为博弈求解器的输入对象。
+\end{quote}
+
+\section{从真实数据到项目模型的正确接入方式}
+
+建议的数据融合流程是：
+
+\begin{enumerate}
+  \item 从高速服务区子集筛选正常记录，处理零电量、非正时长、超长时长和异常故障；
+  \item 将事件级充电记录按小时切分，得到真实 EV 充电负荷；
+  \item 用电量除以充电时长得到单次平均充电功率；
+  \item 按用户、站点、日期、小时建立到达率、充电量、时长和主动停止概率模型；
+  \item 将预测接口统一为固定契约：当前状态、历史窗口、未来 24 小时供能预测、未来 24 小时负荷预测及预测置信度；
+  \item 以 SOC 初值和储能控制动作递推 SOC，不要求历史 SOC，但要保留当前 SOC 作为滚动初值；
+  \item 将真实 EV 交易数据用于校准预测模型和用户响应模型，再将预测结果送入 OpenDSS 与 SFSE 环境；
+  \item 用真实交易费用和 TOU 价格校准用户效用 $v_i$ 与价格响应参数；
+  \item 用历史留出日期和滚动回测测试，不能只在训练日期上比较。
+\end{enumerate}
+
+\section{当前项目的能力边界}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{当前状态核查}
+\begin{tabular}{p{4.2cm} p{3.0cm} p{7.0cm}}
+\toprule
+\textbf{能力} & \textbf{状态} & \textbf{说明}\\
+\midrule
+OpenDSS 24 小时快照仿真 & 已实现 & 已接入 A/B/C 预测和规则/MPC 储能策略\\
+规则场景调度 & 已实现 & ScenarioDispatcher 已接入 main.py\\
+电池 SOH/经济评价 & 已实现 & 主流程已调用，输出日老化和净利润\\
+KKT 主从博弈 & 独立原型 & 可运行，但未接入 OpenDSS 主循环\\
+BRI 全尺寸求解 & 独立原型 & 可作为价格—用户博弈求解器\\
+安全投影 & 独立原型 & 可行，但尚未作为 main.py 统一安全层\\
+安全 RL & 独立原型 & 可运行，尚未使用真实 Dataset 训练\\
+真实 Dataset 接入 & 尚未实现 & 需要清洗、小时聚合、特征建模和 loader 扩展\\
+预测接口 & 已具备接口条件 & 当前状态 + 历史状态 + 未来 24 小时供能/负荷预测；需要统一输入契约\\
+ERA5 风光出力校准 & 可选增强 & 可用于校准/补充预测模块，不应替代已有预测接口\\
+严格孤岛控制 & 部分实现 & 有 Vsource 功率诊断，但需进一步明确 grid-forming 和失负荷逻辑\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结论与下一步}
+
+我对当前项目的判断是：项目不是“只有一个 RL demo”，也不是“完整系统已经全部接通”。它已经形成了清晰的技术骨架，但仍处于\textbf{原型链路向统一系统链路集成}的阶段。
+
+下一步最重要的不是继续增加算法，而是完成三项集成：
+
+\begin{enumerate}
+  \item \textbf{Dataset 接入}：形成高速服务区真实充电负荷和用户参数生成器，供预测模块校准；
+  \item \textbf{预测接口统一}：明确当前状态、历史窗口、未来 24 小时供能/负荷预测、置信度和时间戳；
+  \item \textbf{博弈接入}：让滚动 SFSE/BRI/RL 的价格与储能动作真正进入 OpenDSS 和 SOH 评价闭环；
+  \item \textbf{ERA5 增强}：在预测模块需要时，用 ERA5 补充辐照、风速和极端天气场景，而不是重复建设预测模块。
+\end{enumerate}
+
+完成这三项后，项目才可以完整地表述为：
+
+\begin{quote}
+真实高速服务区用户数据驱动、气象驱动风光出力、OpenDSS 离网微网、SOH 感知储能和安全可行主从博弈统一闭环系统。
+\end{quote}
+
+\end{document}
