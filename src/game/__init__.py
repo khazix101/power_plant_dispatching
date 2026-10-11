@@ -6,6 +6,11 @@ from src.game.follower import solve_follower_response, follower_cost
 from src.game.baseline import run_fixed_price_baseline
 from src.game.forecast import ForecastBundle
 from src.game.rolling import RollingDecision, RollingSFSEController
+from src.game.calibration import (
+    load_calibration_summary,
+    load_hourly_base_ev_load,
+    load_user_group_parameters,
+)
 
 __all__ = [
     "GameCase",
@@ -19,4 +24,7 @@ __all__ = [
     "ForecastBundle",
     "RollingDecision",
     "RollingSFSEController",
+    "load_calibration_summary",
+    "load_hourly_base_ev_load",
+    "load_user_group_parameters",
 ]
