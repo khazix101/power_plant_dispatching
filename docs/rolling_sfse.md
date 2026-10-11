@@ -9,6 +9,7 @@
 - the latest history window supplied by the forecasting service;
 - 24-hour (or configurable horizon) renewable supply forecasts;
 - 24-hour base EV-load and non-EV-load forecasts;
+- EV and non-EV reactive-load forecasts (`kvar`), required by the GFM QSTS adapter;
 - optional prediction intervals.
 
 The base EV-load forecast must not already include the price response that the Stackelberg follower model will calculate. Otherwise price response is counted twice.
@@ -55,7 +56,7 @@ controller = RollingSFSEController(method="bri", flexibility=0.2)
 decision = controller.step(bundle)
 ```
 
-`current_ev_load_kw` is treated as already realized and is not shifted by the follower. The remaining forecast demand is flexible within the configured `flexibility` ratio.
+`current_ev_load_kw` is treated as already realized and is not shifted by the follower. The remaining forecast demand is flexible within the configured `flexibility` ratio. The legacy `apply_to_opendss` method uses the original slack-source snapshot path; strict islanded operation must use `apply_to_gfm` with an `IslandedGFMQSTS` controller.
 
 ## OpenDSS adapter
 

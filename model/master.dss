@@ -4,13 +4,9 @@ Set DefaultBaseFrequency=50
 
 New Circuit.ChargingStation_Microgrid bus1=MainBus basekV=0.4 pu=1.0 phases=3
 
-! ==========================================================
-! Voltage source as system reference (slack bus)
-! Auto-created by New Circuit command (named "source").
-! In islanded microgrid mode, the Vsource power should be
-! close to zero when storage dispatch correctly balances
-! generation and load.
-! ==========================================================
+! Voltage source as system reference (slack bus).
+! This master model is the legacy grid-referenced snapshot model. Strict
+! islanded GFM studies use model/islanded_gfm.dss and the external QSTS loop.
 
 ! ==========================================================
 ! Line code definition

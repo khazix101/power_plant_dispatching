@@ -32,6 +32,8 @@ class ForecastBundle:
     base_ev_load_forecast_kw: List[float]
     non_ev_load_forecast_kw: List[float] = field(default_factory=list)
     current_ev_load_kw: float = 0.0
+    base_ev_load_forecast_kvar: Optional[List[float]] = None
+    non_ev_load_forecast_kvar: Optional[List[float]] = None
 
     soc_current: float = 0.5
     soh_current: float = 1.0
@@ -58,6 +60,16 @@ class ForecastBundle:
             self.non_ev_load_forecast_kw = [0.0] * h
         self.non_ev_load_forecast_kw = _as_float_list(
             self.non_ev_load_forecast_kw, "non_ev_load_forecast_kw", h
+        )
+        if self.base_ev_load_forecast_kvar is None:
+            self.base_ev_load_forecast_kvar = [0.0] * h
+        self.base_ev_load_forecast_kvar = _as_float_list(
+            self.base_ev_load_forecast_kvar, "base_ev_load_forecast_kvar", h
+        )
+        if self.non_ev_load_forecast_kvar is None:
+            self.non_ev_load_forecast_kvar = [0.0] * h
+        self.non_ev_load_forecast_kvar = _as_float_list(
+            self.non_ev_load_forecast_kvar, "non_ev_load_forecast_kvar", h
         )
         if not 0.0 <= self.soc_current <= 1.0:
             raise ValueError("soc_current 必须在 [0, 1] 内")

@@ -157,7 +157,10 @@ class RollingSFSEController:
 
     @staticmethod
     def apply_to_opendss(model, bundle: ForecastBundle, decision: RollingDecision):
-        """将当前滚动决策写入 OpenDSS 并执行一次快照潮流。"""
+        """Legacy slack-source snapshot adapter.
+
+        Strict islanded studies should call ``apply_to_gfm`` instead.
+        """
         model.set_power(
             bundle.pv_forecast_kw[0],
             bundle.wind_forecast_kw[0],
@@ -170,3 +173,24 @@ class RollingSFSEController:
             "source_kw": model.get_source_power_kw(),
             "losses_kw": model.get_line_losses_kw(),
         }
+
+    @staticmethod
+    def apply_to_gfm(gfm_controller, bundle: ForecastBundle,
+                     decision: RollingDecision):
+        """将当前滚动决策送入 GFM QSTS 外层控制器。
+
+        需要显式提供 EV/非 EV 负荷 kvar；代码不会用隐含功率因数替代站端
+        或预测接口给出的无功输入。
+        """
+        ev_kvar = bundle.base_ev_load_forecast_kvar[0]
+        non_ev_kvar = bundle.non_ev_load_forecast_kvar[0]
+        return gfm_controller.solve_step(
+            pv_kw=bundle.pv_forecast_kw[0],
+            wind_kw=bundle.wind_forecast_kw[0],
+            ev_base_kw=decision.ev_load_kw,
+            ev_load_kvar=ev_kvar,
+            p_bess_schedule_kw=decision.storage_kw,
+            q_bess_schedule_kvar=0.0,
+            non_ev_kw=bundle.non_ev_load_forecast_kw[0],
+            non_ev_kvar=non_ev_kvar,
+        )
