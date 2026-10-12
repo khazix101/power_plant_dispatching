@@ -1,0 +1,346 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs,array,longtable,enumitem,xcolor,titlesec,fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\definecolor{mainblue}{RGB}{20,60,120}
+\definecolor{accent}{RGB}{180,70,30}
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\setlist[itemize]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=3pt}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small GFM 离网数学模型冻结报告}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.4cm}\textbf{\color{mainblue}有限容量 Grid-forming BESS\\物理离网微网 GFM 数学模型冻结报告}\\[6pt]
+\large 面向高速服务区滚动安全可行主从博弈调度}
+\author{充电站微网数字孪生项目组}
+\date{\today}
+
+\begin{document}
+\sloppy
+\maketitle
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{minipage}{0.93\textwidth}\small
+\textbf{冻结目的：}本文冻结主论文当前阶段采用的 GFM 物理离网模型、符号约定、设备约束和 OpenDSS 外层 QSTS 迭代流程。模型采用有限容量 Grid-forming BESS 作为离网 Vtheta 参考单元，外部控制器实现 Cunha 等人所采用的“控制方程迭代—OpenDSS 潮流—残差更新”思路。需要强调：OpenDSS 的普通 Storage 元件本身不自动具备 GFM 下垂控制；Vsource 仅作为数值电压/相角参考，禁止作为外部能量源。本文参数是阶段性仿真参数，真实线路 R/X、变压器和热额定电流仍需后续设备资料校核。
+\end{minipage}
+\end{center}
+
+\section{模型范围与物理边界}
+
+研究对象为单个高速服务区的风光储充离网微网：
+
+\begin{itemize}
+  \item 光伏额定功率：$P^{PV}_{rated}=400$ kW；
+  \item 风电额定功率：$P^{WT}_{rated}=100$ kW；
+  \item 储能容量：$E_B=2000$ kWh；
+  \item PCS 有功额定功率：$P_{B,rated}=800$ kW；
+  \item PCS 最大无功：$Q_{B,rated}=600$ kvar；
+  \item PCS 视在功率：$S_{B,rated}=1000$ kVA；
+  \item 不使用外部电网补给；
+  \item 不使用 V2G，EV 只作为有功充电负荷；
+  \item Grid-forming BESS 建立离网系统的电压/频率参考；
+  \item OpenDSS 负责三相准静态潮流，外部 Python 控制器负责 GFM 下垂迭代。
+\end{itemize}
+
+当前阶段指定使用 $P$--$f/Q$--$V$ 下垂，即配置名为 \texttt{X\_gt\_R}。这表示论文阶段固定采用该控制策略，不表示已经用现场馈线参数证明 $X>R$。阶段性线路参数为：
+
+\begin{equation}
+R_1=0.125\ \Omega/\text{km},\qquad X_1=0.08\ \Omega/\text{km},
+\end{equation}
+
+线路长度和热额定电流仍属于待校核参数。当前没有真实线路额定电流时，只报告 $I_{line}$，不声明热限值通过。
+
+\section{符号与功率正负约定}
+
+本文统一采用\textbf{网络注入为正}的控制层约定：
+
+\begin{itemize}
+  \item $P_B>0$：BESS 向网络放电；$P_B<0$：BESS 充电；
+  \item $Q_B>0$：BESS 向网络注入无功；$Q_B<0$：BESS 吸收无功；
+  \item $P^{PV},P^{WT}>0$：新能源向网络注入；
+  \item $P^{EV},P^{nonEV}>0$：负荷从网络吸收；
+  \item OpenDSS 元件端口功率采用其自身“流入元件为正”的约定，因此读取后需要转换为网络注入符号；
+  \item OpenDSS Vsource 端口 $P_{src}>0$ 表示参考元件吸收网络盈余，$P_{src}<0$ 表示参考元件正在向网络补充缺额。
+\end{itemize}
+
+因此，离网约束不是简单要求某个固定电压，而是要求最终 Vsource 净交换满足：
+
+\begin{equation}
+|P_{src}|\leq\varepsilon_P,
+\qquad |Q_{src}|\leq\varepsilon_Q.
+\end{equation}
+
+若 $P_{src}<0$，这表示系统正在隐式使用外部补给，当前时步应继续由 BESS 响应、EV 削减或新能源/负荷调整消除，而不能直接接受为“离网可行”。
+
+\section{设备与状态模型}
+
+\subsection{Grid-forming BESS}
+
+BESS 有功和无功满足：
+
+\begin{equation}
+-P_{B,rated}\leq P_{B,t}\leq P_{B,rated},
+\end{equation}
+
+\begin{equation}
+-Q_{B,rated}\leq Q_{B,t}\leq Q_{B,rated},
+\end{equation}
+
+\begin{equation}
+P_{B,t}^2+Q_{B,t}^2\leq S_{B,rated}^2.
+\end{equation}
+
+当前运行 SOC 约束为：
+
+\begin{equation}
+SOC^{min}\leq SOC_t\leq SOC^{max},
+\qquad
+SOC^{min}=0.10,\quad SOC^{max}=0.90.
+\end{equation}
+
+为保证下一时段备用能力，调度放电下限采用：
+
+\begin{equation}
+SOC_t\geq SOC^{reserve}=0.20.
+\end{equation}
+
+储能能量状态递推为：
+
+\begin{equation}
+SOC_{t+1}=SOC_t+
+\begin{cases}
+-\dfrac{P_{B,t}\Delta t}{\eta_d E_B},&P_{B,t}\geq0,\\[6pt]
+-\dfrac{P_{B,t}\eta_c\Delta t}{E_B},&P_{B,t}<0,
+\end{cases}
+\end{equation}
+
+其中：
+
+\begin{equation}
+\eta_c=\eta_d=0.95,\qquad E_B=2000\ \text{kWh}.
+\end{equation}
+
+待机损耗当前阶段暂设为 0 kW。未来获得 PCS/BESS 资料后，应将待机损耗作为额外非 EV 负荷或 BESS 自耗功率接入，而不是隐含忽略。
+
+\subsection{EV 负荷与缺额}
+
+基础预测接口提供 $P^{EV,base}_t$ 和 $Q^{EV,base}_t$。价格响应由主从博弈计算，安全层可能削减 EV 服务量：
+
+\begin{equation}
+0\leq P^{EV,served}_t\leq P^{EV,base}_t+\Delta P^{response}_t(p_t),
+\end{equation}
+
+\begin{equation}
+P^{EV,shed}_t=P^{EV,request}_t-P^{EV,served}_t\geq0.
+\end{equation}
+
+缺额不是由外部电网补给，而是通过 $P^{EV,shed}_t$ 体现未服务充电需求，并计入可靠性惩罚：
+
+\begin{equation}
+C^{shed}_t=\lambda_{shed}P^{EV,shed}_t.
+\end{equation}
+
+光伏、风电盈余不能通过外部电网消纳时，采用限发：
+
+\begin{equation}
+0\leq P^{PV,use}_t\leq P^{PV,avail}_t,
+\qquad
+0\leq P^{WT,use}_t\leq P^{WT,avail}_t.
+\end{equation}
+
+\begin{equation}
+P^{PV,curt}_t=P^{PV,avail}_t-P^{PV,use}_t,
+\quad
+P^{WT,curt}_t=P^{WT,avail}_t-P^{WT,use}_t.
+\end{equation}
+
+\section{离网功率平衡}
+
+在每个 OpenDSS 快照时步，系统有功/无功平衡要求为：
+
+\begin{equation}
+P^{PV,use}_t+P^{WT,use}_t+P_{B,t}
++
+P^{shed}_t
+=
+P^{EV,served}_t+P^{nonEV}_t+P^{loss}_t,
+\end{equation}
+
+\begin{equation}
+Q_{B,t}+Q^{PV}_t+Q^{WT}_t
+=
+Q^{EV}_t+Q^{nonEV}_t+Q^{loss}_t.
+\end{equation}
+
+目前 GFM 单站测试中，PV/风电采用有功注入，EV/非 EV 的无功由实时接口显式提供；不再用隐藏的固定功率因数替代真实输入。
+
+\section{P--f/Q--V 下垂控制}
+
+当前论文阶段指定使用感性耦合形式的 P--f/Q--V 下垂：
+
+\begin{equation}
+f_t=f_0-m_p\left(P_{B,t}-P_{B,t}^{0}\right),
+\end{equation}
+
+\begin{equation}
+V_{\theta,t}=V_0-n_q\left(Q_{B,t}-Q_{B,t}^{0}\right),
+\end{equation}
+
+其中：
+
+\begin{equation}
+f_0=50\ \text{Hz},\qquad V_0=1.0\ \text{pu},
+\end{equation}
+
+\begin{equation}
+m_p=\frac{\Delta f_{droop}}{P_{B,rated}}
+=\frac{0.5}{800}\ \text{Hz/kW},
+\end{equation}
+
+\begin{equation}
+n_q=\frac{\Delta V_{droop}}{Q_{B,rated}}
+=\frac{0.01}{600}\ \text{pu/kvar}.
+\end{equation}
+
+这里 $P_B^0,Q_B^0$ 是小时级滚动调度器给出的 BESS 基准计划，$P_B,Q_B$ 是 GFM 外层迭代后的实际工作点。参考电压 $V_{\theta,t}$ 不是恒等于 $V_0$ 的硬约束，而是随着下垂工作点更新，并最终通过 OpenDSS 检查全网电压范围。
+
+\begin{equation}
+0.95\leq V_{n,t}\leq1.05\ \text{pu},
+\qquad n\in\mathcal{N}_{bus}.
+\end{equation}
+
+频率限值为：
+
+\begin{equation}
+49.5\leq f_t\leq50.5\ \text{Hz}.
+\end{equation}
+
+由于当前实际馈线 R/X 尚未确认，线路采用典型低压参数，论文阶段固定使用 P--f/Q--V；真实线路参数获得后，再进行 P--f/Q--V 与 P--V/Q--f 的敏感性对比。
+
+\section{OpenDSS 外层 QSTS 迭代}
+
+OpenDSS 普通 Storage 不会自动执行 GFM 下垂控制，因此在每个小时/快照时步执行外层迭代：
+
+\begin{enumerate}
+  \item 读取当前 SOC、上一时刻参考频率和电压；
+  \item 读取 PV、风电、EV 有功/无功和非 EV 有功/无功；
+  \item 根据调度计划和当前下垂参考设置 BESS P/Q；
+  \item 将 Vsource 移到 `Storage\_Bus`，仅作为数值 $V\theta$ 参考；
+  \item 调用 OpenDSS 快照潮流；
+  \item 读取 Vsource 端口 P/Q、全网母线电压、线路电流和线路损耗；
+  \item 更新有限容量 BESS 的 P/Q 命令和 $V\theta/f$ 参考；
+  \item 若 BESS P/SOC 饱和且源端仍有缺额，削减 EV 负荷；若有盈余，限发 PV/风电；
+  \item 当功率残差、频率变化和电压变化均满足容差时接受该时步；
+  \item 否则继续迭代，达到最大次数仍不满足则报告不可行。
+\end{enumerate}
+
+用 $k$ 表示第 $k$ 次外层迭代，收敛判据为：
+
+\begin{equation}
+|P_{src}^{(k)}|\leq\epsilon_P,
+\quad
+|Q_{src}^{(k)}|\leq\epsilon_Q,
+\quad
+|f^{(k)}-f^{(k-1)}|\leq\epsilon_f,
+\quad
+|V_{\theta}^{(k)}-V_{\theta}^{(k-1)}|\leq\epsilon_V.
+\end{equation}
+
+当前实现的典型容差为：
+
+\begin{equation}
+\epsilon_P=0.5\ \text{kW},\quad
+\epsilon_Q=0.5\ \text{kvar},\quad
+\epsilon_f=10^{-3}\ \text{Hz},\quad
+\epsilon_V=10^{-4}\ \text{pu}.
+\end{equation}
+
+注意：Vsource 的功率是离网约束诊断量，不是允许的外部供能量。`external_supply_kw` 在接受结果中固定为 0；若源端残差未回到容差内，控制器抛出不可行异常。
+
+\section{滚动调度接口}
+
+每个小时调用一次 GFM QSTS。上层滚动 SFSE 提供未来窗口的当前小时计划，下层 GFM 控制器执行当前小时物理校验：
+
+\begin{equation}
+\text{ForecastBundle}
+\rightarrow
+\text{Rolling SFSE}
+\rightarrow
+\text{GFM QSTS}
+\rightarrow
+\text{OpenDSS}
+\rightarrow
+SOC/SOH 更新.
+\end{equation}
+
+实时接口必须显式提供：
+
+\begin{itemize}
+  \item PV/风电有功；
+  \item EV 有功和无功；
+  \item 非 EV 有功和无功；
+  \item 当前 SOC/SOH；
+  \item BESS 小时计划 P/Q。
+\end{itemize}
+
+单时刻测试验证控制符号和边界；连续 24 小时序列才能验证 SOC、备用容量、削减与弃电的日内演化。
+
+\section{当前阶段参数与证据边界}
+
+\begin{longtable}{p{4.5cm}p{4.0cm}p{5.0cm}}
+\toprule
+\textbf{参数} & \textbf{当前值} & \textbf{证据边界}\\
+\midrule
+PV/风电容量 & 400/100 kW & 用户提供的阶段性单站配置\\
+BESS/PCS & 2000 kWh，800 kW，600 kvar，1000 kVA & 用户提供的设备配置\\
+SOC/效率 & 10--90\%，备用 20\%，效率 95\% & 常见离网设备阶段性估计\\
+下垂 & P--f/Q--V，0.5 Hz、0.01 pu & 本文指定控制策略\\
+线路 R/X & 0.125/0.08 ohm/km & 典型低压线路阶段性参数\\
+线路热额定值 & 未配置 & 仅记录 Iline，热约束未验证\\
+待机损耗 & 0 kW & 阶段性理想化假设\\
+\bottomrule
+\end{longtable}
+
+当前模型可以支持“典型参数下的算法和物理边界验证”，不能称为真实服务区馈线级验证。待获得线路、变压器、PCS GFM 参数和线路额定电流后，需要重新校准并进行参数敏感性实验。
+
+\section{已完成验证与未完成工作}
+
+已完成：
+\begin{itemize}
+  \item Vtheta 数值参考移动到 `Storage\_Bus`；
+  \item 正常供需时步收敛；
+  \item 风光过剩时 BESS 充电和电压检查；
+  \item SOC/PCS 饱和时 EV 负荷显式削减；
+  \item Vsource 不作为外部补给；
+  \item SOC、P/Q、视在功率和电压边界测试；
+  \item 连续滚动小算例和 D 盘 Miniconda base 编译测试。
+\end{itemize}
+
+未完成：
+\begin{itemize}
+  \item 真实 24 小时 PV/风电/EV P/Q 序列接入；
+  \item 真实线路和变压器参数替换典型值；
+  \item 线路额定电流和热约束验证；
+  \item GFM 控制器真实 PCS 参数校准；
+  \item 预测误差下的滚动 SFSE + GFM QSTS 联合实验。
+\end{itemize}
+
+\section{冻结结论}
+
+本阶段冻结的物理模型为：
+
+\begin{quote}
+单站 400 kW 光伏、100 kW 风电和 2000 kWh/800 kW/600 kvar/1000 kVA GFM BESS 构成物理离网微网；BESS 作为 Storage\_Bus 附近的有限容量 Vtheta 单元，采用指定 P--f/Q--V 下垂，外部 Python 控制器迭代更新 BESS P/Q、Vtheta 和频率参考，OpenDSS 执行准静态潮流；没有外部补给，BESS 饱和后的有功缺额转为 EV 失负荷，盈余转为风光限发。
+\end{quote}
+
+这个模型可作为主论文后续滚动 SFSE 的物理执行层；典型线路和设备假设必须在实验表格中显式标注，不得写成现场实测结果。
+
+\end{document}
