@@ -58,6 +58,9 @@ decision = controller.step(bundle)
 
 `current_ev_load_kw` is treated as already realized and is not shifted by the follower. The remaining forecast demand is flexible within the configured `flexibility` ratio. The legacy `apply_to_opendss` method uses the original slack-source snapshot path; strict islanded operation must use `apply_to_gfm` with an `IslandedGFMQSTS` controller.
 
-## OpenDSS adapter
+## DC execution layer
 
-After `step`, call `RollingSFSEController.apply_to_opendss(model, bundle, decision)` to write the current-hour PV, wind, total load, and storage power to an OpenDSS snapshot model. The method returns voltage, source-power, and loss diagnostics.
+The rolling controller returns the current-hour price, EV service, and BESS
+power. The dynamic DC branch executes those values through
+`DynamicDCSFSEController` and `DCMicrogridPowerFlow`; it does not depend on an
+AC OpenDSS model or an external slack source.
