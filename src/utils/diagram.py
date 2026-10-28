@@ -41,7 +41,7 @@ def generate_diagram(output_dir="output"):
 
 
 def _draw_mainbus(ax):
-    """绘制 0.4 kV 交流主母线。"""
+    """绘制直流微网主母线。"""
     x, y = 7.0, 4.0
     ax.barh(y, 6, height=0.3, left=4, color="steelblue", edgecolor="black")
     ax.text(x, y, "主母线 0.4 kV AC", ha="center", va="center",
