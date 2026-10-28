@@ -9,7 +9,7 @@
 - the latest history window supplied by the forecasting service;
 - 24-hour (or configurable horizon) renewable supply forecasts;
 - 24-hour base EV-load and non-EV-load forecasts;
-- EV and non-EV reactive-load forecasts (`kvar`), required by the GFM QSTS adapter;
+- EV and non-EV forecasts used by the DC network controller;
 - optional prediction intervals.
 
 The base EV-load forecast must not already include the price response that the Stackelberg follower model will calculate. Otherwise price response is counted twice.
@@ -25,7 +25,7 @@ project dispatch to the physical safe set
         |
 execute only the first-hour price and storage action
         |
-run OpenDSS snapshot and update SOC/SOH
+run the DC network snapshot and update SOC/SOH
         |
 advance one hour and repeat
 ```
@@ -56,11 +56,11 @@ controller = RollingSFSEController(method="bri", flexibility=0.2)
 decision = controller.step(bundle)
 ```
 
-`current_ev_load_kw` is treated as already realized and is not shifted by the follower. The remaining forecast demand is flexible within the configured `flexibility` ratio. The legacy `apply_to_opendss` method uses the original slack-source snapshot path; strict islanded operation must use `apply_to_gfm` with an `IslandedGFMQSTS` controller.
+`current_ev_load_kw` is treated as already realized and is not shifted by the follower. The remaining forecast demand is flexible within the configured `flexibility` ratio. The controller now applies decisions to the DC network snapshot.
 
 ## DC execution layer
 
 The rolling controller returns the current-hour price, EV service, and BESS
 power. The dynamic DC branch executes those values through
 `DynamicDCSFSEController` and `DCMicrogridPowerFlow`; it does not depend on an
-AC OpenDSS model or an external slack source.
+the DC network model.

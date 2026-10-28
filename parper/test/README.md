@@ -25,4 +25,4 @@ D:\miniconda3\python.exe -c "from tests.test_calibration_loader import test_cali
 - 测试数据、参数和随机种子必须记录；
 - 真实标定输出在 `Dataset/processed/`，原始数据不提交；
 - 论文图表由独立实验脚本生成；
-- 交流 GFM 测试不属于本直流论文分支。
+- 本分支只维护直流微网测试；交流 GFM/OpenDSS 测试已从运行主线移除。
