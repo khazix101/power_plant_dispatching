@@ -1,6 +1,7 @@
 # IDE / Editor
 .vscode/
 .idea/
+.opencode/
 *.swp
 *.swo
 
@@ -36,3 +37,6 @@ desktop.ini
 .venv/
 venv/
 env/
+
+# Local-only research materials, tests, screenshots, and generated results
+local/
