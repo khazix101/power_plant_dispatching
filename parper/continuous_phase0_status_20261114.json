@@ -1,0 +1,23 @@
+{
+  "phase": "phase_0_execution_gate_repair",
+  "status": "numeric_replay_passed_fresh_optimized_rerun_pending",
+  "date_path": ["2021-05-01", "2021-05-02", "2021-05-03"],
+  "arms_audited": ["fixed_price_bess", "dynamic_fixed_cost", "soh_aware"],
+  "raw_original_gate": {
+    "status": "failed_preserved",
+    "daily_energy_identity_kwh": [1.2142983223384363e-06, 2.063443290012401e-06, 1.4720691225988958e-06],
+    "threshold_kwh": 1e-06
+  },
+  "isolated_precision_replay": {
+    "status": "passed_for_all_9_arm_days",
+    "max_daily_identity_kwh": 3.213429522475053e-10,
+    "max_step_residual_kwh": 3.921130087292113e-11,
+    "max_action_change_kw": 2.842170943040401e-14,
+    "ev_delivery_change_kwh": 0.0,
+    "revenue_change_yuan": 0.0,
+    "aging_change_yuan": 0.0,
+    "interpretation": "Uses recorded actions and states; explains execution tolerance accumulation but does not replace a fresh optimized rerun."
+  },
+  "release_decision": "Do not start Phase 1 until a fresh optimized 3-day rerun using the tightened execution tolerance passes the unchanged gate.",
+  "tests": "test_continuous_state_transfer: 2 passed"
+}

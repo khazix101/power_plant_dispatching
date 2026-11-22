@@ -27,6 +27,18 @@ from test_site_a_inputs import SiteAInputTests
 from test_long_horizon_ledger import LongHorizonLedgerTests
 from test_soh_game_integration import SOHGameIntegrationTests
 import test_dc_physics
+from test_dynamic_dc_regressions import (
+    test_ev_limit_is_separate_from_pcs_rating,
+    test_half_hour_measured_plus_remaining_forecast_is_not_double_counted,
+    test_next_hour_forecast_can_use_current_dispatch_interval,
+    test_current_flexible_fraction_adds_price_responsive_user,
+    test_soh_game_switch_controls_effective_capacity,
+    test_ev_demand_elasticity_reduces_follower_energy_with_price,
+    test_follower_respects_shared_station_power_limit_with_rigid_load,
+    test_soh_finalize_updates_effective_capacity,
+    test_provider_rejects_unavailable_noncyclic_cross_day_window,
+    test_excess_backlog_is_reported_separately,
+)
 
 
 def main():
@@ -55,7 +67,22 @@ def main():
     for name in sorted(physics_tests):
         getattr(test_dc_physics, name)()
         print(f"PASS {name}")
-    print(f"{len(tests) + 4 + len(physics_tests)} paper tests passed")
+    tracked_tests = [
+        test_ev_limit_is_separate_from_pcs_rating,
+        test_half_hour_measured_plus_remaining_forecast_is_not_double_counted,
+        test_next_hour_forecast_can_use_current_dispatch_interval,
+        test_current_flexible_fraction_adds_price_responsive_user,
+        test_soh_game_switch_controls_effective_capacity,
+        test_ev_demand_elasticity_reduces_follower_energy_with_price,
+        test_follower_respects_shared_station_power_limit_with_rigid_load,
+        test_soh_finalize_updates_effective_capacity,
+        test_provider_rejects_unavailable_noncyclic_cross_day_window,
+        test_excess_backlog_is_reported_separately,
+    ]
+    for test in tracked_tests:
+        test()
+        print(f"PASS {test.__name__}")
+    print(f"{len(tests) + 4 + len(physics_tests) + len(tracked_tests)} paper tests passed")
 
 
 if __name__ == "__main__":

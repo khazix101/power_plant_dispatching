@@ -1,0 +1,168 @@
+{
+  "data.grib": {
+    "ssrd_messages": 8784,
+    "stepRange_counts": {
+      "5-6": 732,
+      "6-7": 732,
+      "7-8": 732,
+      "8-9": 732,
+      "9-10": 732,
+      "10-11": 732,
+      "11-12": 732,
+      "0-1": 732,
+      "1-2": 732,
+      "2-3": 732,
+      "3-4": 732,
+      "4-5": 732
+    },
+    "examples": [
+      {
+        "stepRange": "5-6",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 0,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "6-7",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 100,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "7-8",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 200,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "8-9",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 300,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "9-10",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 400,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "10-11",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 500,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "11-12",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 600,
+        "dataDate": 20191231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "0-1",
+        "stepType": "accum",
+        "validityDate": 20200101,
+        "validityTime": 700,
+        "dataDate": 20200101,
+        "dataTime": 600
+      }
+    ]
+  },
+  "4be969e0cf4eb24bf77b25e39779b8f1.grib": {
+    "ssrd_messages": 8760,
+    "stepRange_counts": {
+      "5-6": 730,
+      "6-7": 730,
+      "7-8": 730,
+      "8-9": 730,
+      "9-10": 730,
+      "10-11": 730,
+      "11-12": 730,
+      "0-1": 730,
+      "1-2": 730,
+      "2-3": 730,
+      "3-4": 730,
+      "4-5": 730
+    },
+    "examples": [
+      {
+        "stepRange": "5-6",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 0,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "6-7",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 100,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "7-8",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 200,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "8-9",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 300,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "9-10",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 400,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "10-11",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 500,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "11-12",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 600,
+        "dataDate": 20201231,
+        "dataTime": 1800
+      },
+      {
+        "stepRange": "0-1",
+        "stepType": "accum",
+        "validityDate": 20210101,
+        "validityTime": 700,
+        "dataDate": 20210101,
+        "dataTime": 600
+      }
+    ]
+  }
+}

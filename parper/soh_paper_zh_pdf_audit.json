@@ -1,0 +1,21 @@
+{
+  "pages": 10,
+  "figures": 2,
+  "equations": 11,
+  "source_sha256": "de11a76beccb15c3668bb5b20345968357c79082d52b62b16fa37ac3727b5a56",
+  "pdf_sha256": "8e3b1b3aea7857cc68c053ffc310b08b6c46e630b7af934092bd19338b88554b",
+  "characters_per_page": [
+    1426,
+    946,
+    722,
+    938,
+    958,
+    1199,
+    306,
+    1066,
+    1839,
+    1741
+  ],
+  "structural_checks_passed": true,
+  "visual_review": "Passed: all pages rendered; contact sheets and detailed equation/table pages inspected"
+}

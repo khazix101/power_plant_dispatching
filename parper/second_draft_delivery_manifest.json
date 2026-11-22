@@ -1,0 +1,163 @@
+{
+  "status": "review_copy_ready_experiments_in_progress",
+  "updated_cst": "2026-11-13T22:19:48+08:00",
+  "review_copy_deadline_cst": "2026-11-13T08:00:00+08:00",
+  "experiment_continuation_deadline_cst": "2026-11-13T16:00:00+08:00",
+  "files": [
+    {
+      "path": "WEVJ_second_draft.pdf",
+      "bytes": 4028159,
+      "sha256": "af76c40a7641f8ba2be76bb18c7ff495291aea36016e345b209c976e2cd39f7c"
+    },
+    {
+      "path": "second_draft_references.bib",
+      "bytes": 4222,
+      "sha256": "dac6d25d6d1df91b11c04e0c27f07a2569ff61e7a5dc32db613b3139d83fe1dc"
+    },
+    {
+      "path": "second_draft_pdf_audit.json",
+      "bytes": 612,
+      "sha256": "b70fe24735414e8f73f9fc33459f70fa4e0ea6c1904f9791f07b17537b41fba7"
+    },
+    {
+      "path": "current_aligned_experiment_summary.json",
+      "bytes": 65567,
+      "sha256": "06c2084a8c4015f5064c997c23ace8d38a608938057f16e2c0aa67646cbff7a8"
+    },
+    {
+      "path": "agent_date_split.json",
+      "bytes": 16166,
+      "sha256": "d925275a29cac51fe2fcc752feafb777a4d4973afbf1ad6e644ce2fcb165584f"
+    },
+    {
+      "path": "agent_runs/knn_noon_full_v2/manifest.json",
+      "bytes": 16646,
+      "sha256": "c64bbde252730bc43ddec86e161beca6acaf7278b0e30bdba29f86e1428ed117"
+    },
+    {
+      "path": "agent_runs/knn_noon_full_v2/locked_checkpoint.json",
+      "bytes": 205948,
+      "sha256": "c6e1d1982f22331a37fb9ee125a04060877bf506bdc27e3e8333d1ef5bbfa79c"
+    },
+    {
+      "path": "agent_runs/knn_noon_full_v2/summary.json",
+      "bytes": 6234,
+      "sha256": "d622da300fa85beca9ac9eca6bb3f62b0fc44ad168651631d7085a369256cad5"
+    },
+    {
+      "path": "agent_runs/knn_noon_full_v2/test.jsonl",
+      "bytes": 406820,
+      "sha256": "b839e295b265f26054c3ae153d50057b15db4577e60ba230e49fa28b377d0ae1"
+    },
+    {
+      "path": "experiment_runs/short_window_cap480_hour_end_20261112.json",
+      "bytes": 18835,
+      "sha256": "f95f50dc19019386cd521b892368a9c03d0ddda9f7cc214e8075ac94fa1787a0"
+    },
+    {
+      "path": "experiment_runs/soh_date_matrix_v4_ssrd_aligned_20261112/manifest.json",
+      "bytes": 77402,
+      "sha256": "33b430c446fa103adcf4741875cdf73948bab8071a64a2212e94c4642a475678"
+    },
+    {
+      "path": "experiment_runs/soh_date_matrix_v4_ssrd_aligned_20261112/final_key_numbers.json",
+      "bytes": 35308,
+      "sha256": "c143b680b29271ac241e3554697638335f70d470a3be84600f0da5da000f5646"
+    },
+    {
+      "path": "experiment_runs/soh_date_matrix_v4_ssrd_aligned_20261112/final_paired_cell_summary.json",
+      "bytes": 496440,
+      "sha256": "4b43296829a2fd0fcdce36c1e888105a08fc446e003ef0d4e940b1e0784d6303"
+    },
+    {
+      "path": "experiment_runs/continuous_three_day_20261112/design.md",
+      "bytes": 3500,
+      "sha256": "1e83683e9f80913a06cdff7a558b0bedc256695b9130d287dfe5f1c909305165"
+    },
+    {
+      "path": "experiment_runs/continuous_three_day_20261112/original_continuous_summary.json",
+      "bytes": 23622,
+      "sha256": "60c1ffbf51533c520a4cbf1734a1eaf31ea341b7ac00ff8e239849aa0a742564"
+    },
+    {
+      "path": "experiment_runs/continuous_three_day_20261112/handoff.md",
+      "bytes": 4933,
+      "sha256": "5041e286f31e4c0558649a263d6b72cc84468fb3a11a6953c317680dac823e73"
+    },
+    {
+      "path": "PENDING_WORK_AUDIT_20261112.md",
+      "bytes": 5330,
+      "sha256": "02cb386cb76d3ab2dbcfdaa5caaf62dbc1728424141cb7eadbbe6388e5f9edec"
+    },
+    {
+      "path": "SECOND_DRAFT_DELIVERY.md",
+      "bytes": 14701,
+      "sha256": "0a1058773923496aeb517ec9cb5f0c66b31da9c623d68d39ea31046662342459"
+    },
+    {
+      "path": "WEVJ_second_draft_feasibility_20261118.pdf",
+      "bytes": 4250265,
+      "sha256": "f16972d909bcb7b5e638cd79d662805a41d9fb0c15cbb3a21ba3b52ecaf99f28"
+    },
+    {
+      "path": "WEVJ_second_draft_zh_feasibility_20261118.pdf",
+      "bytes": 4386293,
+      "sha256": "ee77fa9d69e23e98721b0c7bc3d89736e0afe77e0d94e59134c680a6b924c01a"
+    },
+    {
+      "path": "WEVJ_second_draft.md",
+      "bytes": 75854,
+      "sha256": "1973827ed2c915fc4fa8a947a71c7bc9dbe2ee5ac82a82a5863fd8bcfe8b2a32"
+    },
+    {
+      "path": "WEVJ_second_draft_zh.md",
+      "bytes": 58117,
+      "sha256": "1279f9ca440cc8920601d6cca747657cc27b92560783d12e76c8e0c6d578a417"
+    },
+    {
+      "path": "soh_feasibility_audit_20261118.json",
+      "bytes": 7540,
+      "sha256": "2117f10a37a3b718693acff2350efdc1e37b967494a23dd905be89b10cb99dbf"
+    },
+    {
+      "path": "second_draft_figures/figure_13_soh_feasibility_state_feedback.png",
+      "bytes": 224065,
+      "sha256": "6ec20ea1bccc288b9ffeeb27997c34fa974d1e5aebd21d165b639d716a9fe099"
+    },
+    {
+      "path": "second_draft_feasibility_pdf_audit_20261118.json",
+      "bytes": 955,
+      "sha256": "23ec832b99269c6981409704e05559a71a76d3c7eda9fa9c3af037e6282c0c7e"
+    },
+    {
+      "path": "second_draft_zh_feasibility_pdf_audit_20261118.json",
+      "bytes": 929,
+      "sha256": "7a5f73e2a68b497253e89f1f6d145e4ddfd2c4fdf9ec6fa8ecf042fdacaefb54"
+    }
+  ],
+  "experiment_status": {
+    "agent_short_window": "auxiliary test completed; no acceleration evidence",
+    "soh_date_matrix": "144 cases complete; 136 passes, 8 energy-gate failures",
+    "continuous_fixed_price": "90 accepted days complete",
+    "continuous_dynamic_fixed_cost": "72 accepted days; day 73 failed search-stopping gate; stopped",
+    "continuous_soh_aware": "72 accepted days; day 73 failed search-stopping gate; stopped"
+  },
+  "checks": {
+    "unittest": "43 passed on 2026-11-12",
+    "pdf": "English 23 pages; Chinese 21 pages; 8 figures and 11 equations each; all rendered pages reviewed"
+  },
+  "evidence_limits": [
+    "Old 24-hour and three-date runs with one-hour SSRD misalignment are superseded.",
+    "Agent result is a one-hour noon replay, not a full-day four-arm comparison.",
+    "Independent-day matrix does not identify within-day cost feedback or continuous lifetime effects.",
+    "Site A latitude/longitude and grid-point spatial match are unverified.",
+    "Continuous three-day raw energy gate failures remain failed even if a secondary numerical ledger passes.",
+    "The continuous fixed-request replay cannot establish strategic price responsiveness or equilibrium.",
+    "Dynamic day-73 failures remain failed; days 74-90 have not been executed."
+  ],
+  "current_edition": "2026-11-18 SOH coupling feasibility",
+  "current_pdf_outputs": [
+    "WEVJ_second_draft_feasibility_20261118.pdf",
+    "WEVJ_second_draft_zh_feasibility_20261118.pdf"
+  ]
+}

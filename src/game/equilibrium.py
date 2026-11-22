@@ -53,11 +53,12 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
     """
     T, I = case.T, case.I
     bat = case.battery
-    dt = 1.0
+    capacity_kwh = case.effective_capacity_kwh
+    dt = case.interval_hours
 
     def cap(i, t):
         u = case.users[i]
-        return u.max_power_kw if t in u.available else 0.0
+        return u.max_power_kw * dt[t] if t in u.available else 0.0
 
     m = pyo.ConcreteModel("sfse_equilibrium")
     m.T = pyo.RangeSet(0, T - 1)
@@ -101,7 +102,7 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
         m.T,
         rule=lambda m, t: m.soc[t + 1]
         == m.soc[t] + (bat.charge_eff * m.Pch[t]
-                       - m.Pdis[t] / bat.discharge_eff) * dt / bat.capacity_kwh,
+                       - m.Pdis[t] / bat.discharge_eff) * dt[t] / capacity_kwh,
     )
     m.S = pyo.RangeSet(0, T)
     m.soc_lo = pyo.Constraint(m.S, rule=lambda m, t: m.soc[t] >= bat.soc_min)
@@ -117,7 +118,7 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
         m.T,
         rule=lambda m, t: (
             case.pv[t] + case.wind[t] + m.Pdis[t] + m.shed[t]
-            == case.base_load[t] + sum(m.e[i, t] for i in m.I)
+            == case.base_load[t] + sum(m.e[i, t] for i in m.I) / dt[t]
             + m.Pch[t] + m.curt[t]
         ),
     )
@@ -195,9 +196,10 @@ def solve_equilibrium(case: GameCase, prefer=None, tee=False, fixed_prices=None,
     # ── 目标函数 ────────────────────────────────────────
     revenue = sum(case.price_levels[k] * m.eik[i, t, k]
                   for i in m.I for t in m.T for k in m.K)
-    deg = bat.deg_cost_per_kwh * sum((m.Pch[t] + m.Pdis[t]) * dt for t in m.T)
-    shed_cost = case.penalty_shed * sum(m.shed[t] * dt for t in m.T)
-    curt_cost = case.penalty_curt * sum(m.curt[t] * dt for t in m.T)
+    deg = case.effective_deg_cost_per_kwh * sum(
+        (m.Pch[t] + m.Pdis[t]) * dt[t] for t in m.T)
+    shed_cost = case.penalty_shed * sum(m.shed[t] * dt[t] for t in m.T)
+    curt_cost = case.penalty_curt * sum(m.curt[t] * dt[t] for t in m.T)
     m.obj = pyo.Objective(expr=revenue - deg - shed_cost - curt_cost,
                           sense=pyo.maximize)
 

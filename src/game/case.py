@@ -15,7 +15,9 @@ SFSE 小算例定义 —— 离网高速充电站安全可行主从博弈。
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Optional, Tuple
+
+from src.battery.state import BatteryState
 
 
 @dataclass
@@ -58,14 +60,75 @@ class GameCase:
     users: List[EVUser]
     battery: BatteryParams = field(default_factory=BatteryParams)
     price_levels: List[float] = field(
-        default_factory=lambda: [0.6, 0.9, 1.2, 1.5, 1.8]
+        default_factory=lambda: [1.5, 1.7, 1.9, 2.1, 2.3, 2.5]
     )
+    price_ramp_penalty: float = 0.0
+    # Normalized EV congestion cost: coefficient times
+    # (EV power / station EV limit)^2 per interval.
+    ev_congestion_penalty: float = 0.0
+    ev_service_limit_kw: Optional[float] = None
+    ev_rigid_load_kw: Optional[List[float]] = None
+    ev_demand_elasticity: float = 0.0
+    demand_reference_price: float = 1.4
+    demand_forecast_price: Optional[float] = None
     penalty_shed: float = 2.0        # 失负荷惩罚 (元/kWh)，体现离网可靠性代价
     penalty_curt: float = 0.2        # 弃电惩罚 (元/kWh)
+    battery_state: Optional[BatteryState] = None
+    life_weight: float = 1.0         # 生命周期成本权重 λ
+    interval_hours: Optional[List[float]] = None
+
+    def __post_init__(self):
+        if self.interval_hours is None:
+            self.interval_hours = [1.0] * self.T
+        else:
+            self.interval_hours = [float(dt) for dt in self.interval_hours]
+            if len(self.interval_hours) != self.T:
+                raise ValueError("interval_hours 长度必须等于 T")
+            if any(dt <= 0 for dt in self.interval_hours):
+                raise ValueError("interval_hours 必须为正数")
+        if self.ev_demand_elasticity < 0:
+            raise ValueError("ev_demand_elasticity 不允许为负")
+        if self.ev_rigid_load_kw is None:
+            self.ev_rigid_load_kw = [0.0] * self.T
+        else:
+            self.ev_rigid_load_kw = [float(value) for value in self.ev_rigid_load_kw]
+            if len(self.ev_rigid_load_kw) != self.T:
+                raise ValueError("ev_rigid_load_kw 长度必须等于 T")
+            if any(value < 0 for value in self.ev_rigid_load_kw):
+                raise ValueError("ev_rigid_load_kw 不允许为负")
+        if self.demand_reference_price <= 0:
+            raise ValueError("demand_reference_price 必须为正数")
+        if self.demand_forecast_price is None:
+            self.demand_forecast_price = self.demand_reference_price
+        elif self.demand_forecast_price <= 0:
+            raise ValueError("demand_forecast_price 必须为正数")
 
     @property
     def I(self) -> int:
         return len(self.users)
+
+    @property
+    def effective_capacity_kwh(self) -> float:
+        """Current usable capacity when a dynamic SOH state is attached."""
+        if self.battery_state is not None:
+            return self.battery_state.usable_capacity_kwh
+        return self.battery.capacity_kwh
+
+    @property
+    def effective_deg_cost_per_kwh(self) -> float:
+        """Leader objective coefficient, state-aware when SOH is attached."""
+        if self.battery_state is not None:
+            from src.battery.degradation import marginal_cycle_cost_per_kwh
+            # The replacement-cost basis is the nominal asset, rather than
+            # its SOH-reduced usable energy.  Capacity is already represented
+            # by ``effective_capacity_kwh``; shrinking both values makes the
+            # health signal non-monotone and can make a lower-SOH asset appear
+            # cheaper to cycle.
+            return self.life_weight * marginal_cycle_cost_per_kwh(
+                self.battery_state,
+                c_new=self.battery_state.group_manager.eb_kwh * 1000.0,
+            )
+        return self.battery.deg_cost_per_kwh
 
 
 def build_small_case() -> GameCase:
@@ -113,10 +176,11 @@ def summarize_case(case: GameCase) -> str:
 
 
 def build_full_case() -> GameCase:
-    """构造全尺寸算例: 24 时段 / 1 储能 / 8 个 EV 用户群。
+    """构造 legacy 24 时段算例，用于早期交流/平台量级回归检查。
 
-    规模对齐现有数字孪生平台: 储能 7500 kWh / 3750 kW,
-    新能源与负荷采用典型日曲线。
+    该函数保留 7500 kWh / 3750 kW 的旧参数，不是当前论文主场景。
+    论文实验应通过 DC controller 配置 2000 kWh / 800 kW，并读取
+    ``local/论文/inputs`` 中带 manifest 的 Site-A 输入。
     """
     users = [
         EVUser("U1", 1.55, 600.0, tuple(range(0, 7)), 300.0),

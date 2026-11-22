@@ -131,6 +131,7 @@ def evaluate_battery_aging(
     gamma: float = GAMMA_DEFAULT,
     alpha: float = ALPHA_DEFAULT,
     use_continuous_kcal: bool = False,
+    interval_hours: float = 1.0,
 ) -> Tuple[List[AgingResult], float]:
     """按组评估单日电池老化成本。
 
@@ -152,6 +153,9 @@ def evaluate_battery_aging(
     """
     results: List[AgingResult] = []
     total_cost = 0.0
+    interval_hours = float(interval_hours)
+    if interval_hours <= 0:
+        raise ValueError("interval_hours 必须为正数")
 
     for g_idx in range(NUM_GROUPS):
         g = group_mgr.get_group(g_idx)
@@ -173,10 +177,11 @@ def evaluate_battery_aging(
         else:
             k_cal_val = k_cal_piecewise(soc_avg_daily)
 
-        delta_soh_cal = k_cal_val / 365.0
+        observed_hours = len(hourly_storage_kw) * interval_hours
+        delta_soh_cal = k_cal_val / 365.0 * (observed_hours / 24.0)
 
         # ── 循环老化 ─────────────────────────────────────
-        e_throughput = sum(abs(kw) for kw in hourly_storage_kw)
+        e_throughput = sum(abs(kw) * interval_hours for kw in hourly_storage_kw)
 
         soc_max = max(soc_hourly)
         soc_min = min(soc_hourly)

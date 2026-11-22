@@ -3,7 +3,7 @@
 
 可行集 𝒢 由离网物理约束定义 (凸集):
     功率平衡:  pv_t + wind_t + Pdis_t + shed_t
-               = base_t + Σ_i ev_{i,t} + Pch_t + curt_t
+               = base_t + Σ_i ev_{i,t}/Δt + Pch_t + curt_t
     SOC 动态:  soc_{t+1} = soc_t + (η_ch Pch_t − Pdis_t/η_dis) Δt / cap
     SOC 界:    soc_min ≤ soc_t ≤ soc_max,  soc_T ≥ soc_end_min
     功率界:    0 ≤ Pch_t, Pdis_t ≤ P_max
@@ -30,6 +30,30 @@ W_EV = 50.0      # 削减 EV 充电的惩罚权重
 W_THRU = 1e-3    # 同时充放电的微惩罚, 保证解的唯一性倾向
 
 
+def _interval_hours(case: GameCase):
+    """Return one positive duration (hours) for each model interval.
+
+    ``GameCase`` normally normalizes this field to a list, but the safety
+    layer is also used by small external callers that may provide a scalar.
+    Broadcasting a scalar here keeps the SOC equations and feasibility check
+    on the same time basis without changing the public ``GameCase`` contract.
+    """
+    raw = getattr(case, "interval_hours", None)
+    if raw is None:
+        intervals = [1.0] * case.T
+    else:
+        try:
+            intervals = [float(value) for value in raw]
+        except TypeError:
+            intervals = [float(raw)] * case.T
+        else:
+            if len(intervals) != case.T:
+                raise ValueError("interval_hours 长度必须等于 T")
+    if any(dt <= 0 for dt in intervals):
+        raise ValueError("interval_hours 必须为正数")
+    return intervals
+
+
 def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
     """将请求动作投影到离网可行集。
 
@@ -37,7 +61,8 @@ def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
         case: 博弈算例。
         pch_req: 长度 T 的储能充电请求 (kW)。
         pdis_req: 长度 T 的储能放电请求 (kW)。
-        ev_req: dict {user_name: [e_t]} 请求的 EV 充电量 (kWh)。
+        ev_req: dict {user_name: [e_t]} 请求的 EV 充电量 (kWh)。功率平衡中将
+        其除以对应时段长度，换算为平均功率 (kW)。
         prefer: 求解器。
 
     Returns:
@@ -46,7 +71,7 @@ def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
     T = case.T
     I = case.I
     bat = case.battery
-    dt = 1.0
+    dt = _interval_hours(case)
 
     def ev_req_of(i, t):
         return ev_req[case.users[i].name][t]
@@ -59,6 +84,7 @@ def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
     m.Pdis = pyo.Var(m.T, domain=pyo.NonNegativeReals, bounds=(0, bat.power_kw))
     m.shed = pyo.Var(m.T, domain=pyo.NonNegativeReals)
     m.curt = pyo.Var(m.T, domain=pyo.NonNegativeReals)
+    # EV decisions remain interval energies (kWh); only balance converts to kW.
     m.ev = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)
     m.soc = pyo.Var(pyo.RangeSet(0, T), domain=pyo.NonNegativeReals)
     m.dch = pyo.Var(m.T, domain=pyo.NonNegativeReals)
@@ -78,7 +104,7 @@ def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
         m.T,
         rule=lambda m, t: m.soc[t + 1]
         == m.soc[t] + (bat.charge_eff * m.Pch[t]
-                       - m.Pdis[t] / bat.discharge_eff) * dt / bat.capacity_kwh,
+                       - m.Pdis[t] / bat.discharge_eff) * dt[t] / bat.capacity_kwh,
     )
     m.S = pyo.RangeSet(0, T)
     m.soc_lo = pyo.Constraint(m.S, rule=lambda m, t: m.soc[t] >= bat.soc_min)
@@ -89,7 +115,7 @@ def project_action(case: GameCase, pch_req, pdis_req, ev_req, prefer=None):
         m.T,
         rule=lambda m, t: (
             case.pv[t] + case.wind[t] + m.Pdis[t] + m.shed[t]
-            == case.base_load[t] + sum(m.ev[i, t] for i in m.I)
+            == case.base_load[t] + sum(m.ev[i, t] for i in m.I) / dt[t]
             + m.Pch[t] + m.curt[t]
         ),
     )
@@ -129,12 +155,14 @@ def check_feasible(case: GameCase, sol, tol=1e-6):
     """校验解是否满足离网可行集的全部约束。"""
     T = case.T
     bat = case.battery
+    dt = _interval_hours(case)
     ok = True
 
     for t in range(T):
         ev_t = sum(sol["ev"][u.name][t] for u in case.users)
         lhs = case.pv[t] + case.wind[t] + sol["p_dis"][t] + sol["shed"][t]
-        rhs = case.base_load[t] + ev_t + sol["p_ch"][t] + sol["curt"][t]
+        rhs = (case.base_load[t] + ev_t / dt[t]
+               + sol["p_ch"][t] + sol["curt"][t])
         if abs(lhs - rhs) > 1e-4:
             ok = False
         if sol["p_ch"][t] > bat.power_kw + 1e-6 or sol["p_dis"][t] > bat.power_kw + 1e-6:
@@ -151,7 +179,7 @@ def check_feasible(case: GameCase, sol, tol=1e-6):
     # SOC 动态一致性
     for t in range(T):
         pred = sol["soc"][t] + (bat.charge_eff * sol["p_ch"][t]
-                                - sol["p_dis"][t] / bat.discharge_eff) / bat.capacity_kwh
+                                - sol["p_dis"][t] / bat.discharge_eff) * dt[t] / bat.capacity_kwh
         if abs(pred - sol["soc"][t + 1]) > 1e-6:
             ok = False
     return ok

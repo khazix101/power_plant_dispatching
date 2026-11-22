@@ -1,0 +1,126 @@
+{
+  "completed_days": {
+    "fixed_price_bess": 90,
+    "dynamic_fixed_cost": 69,
+    "soh_aware": 69
+  },
+  "paired_days": 69,
+  "paired_first_date": "2020-05-01",
+  "paired_last_date": "2020-07-08",
+  "paired_totals": {
+    "fixed_price_bess": {
+      "requested_kwh": 8034.16,
+      "served_kwh": 7173.659025345024,
+      "shed_kwh": 860.500974654976,
+      "non_ev_unserved_kwh": 12071.797874341564,
+      "revenue_yuan": 10760.488538017538,
+      "aging_cost_yuan": 21629.512300000002,
+      "replacement_cost_yuan": 0.0,
+      "curtailment_kwh": 22691.310829667324,
+      "battery_loss_kwh": 4447.295173883283,
+      "network_loss_kwh": 693.8603635316276,
+      "curtailment_plus_loss_kwh": 27832.46636708223,
+      "throughput_kwh": 86766.00455986627,
+      "modeled_operating_value_yuan": -12173255.257734977,
+      "runtime_s": 416.6730434
+    },
+    "dynamic_fixed_cost": {
+      "requested_kwh": 8034.16,
+      "served_kwh": 7173.659025345024,
+      "shed_kwh": 860.500974654976,
+      "non_ev_unserved_kwh": 12075.851201961174,
+      "revenue_yuan": 17080.873218810466,
+      "aging_cost_yuan": 21628.577600000008,
+      "replacement_cost_yuan": 0.0,
+      "curtailment_kwh": 22695.34141526909,
+      "battery_loss_kwh": 4446.85621532579,
+      "network_loss_kwh": 694.3228363386629,
+      "curtailment_plus_loss_kwh": 27836.52046693354,
+      "throughput_kwh": 86757.43922052054,
+      "modeled_operating_value_yuan": -12170988.072090918,
+      "runtime_s": 106315.81686459995
+    },
+    "soh_aware": {
+      "requested_kwh": 8034.16,
+      "served_kwh": 7173.659025345024,
+      "shed_kwh": 860.500974654976,
+      "non_ev_unserved_kwh": 12064.036864462887,
+      "revenue_yuan": 17080.873218810466,
+      "aging_cost_yuan": 21722.614400000006,
+      "replacement_cost_yuan": 0.0,
+      "curtailment_kwh": 22682.124117793854,
+      "battery_loss_kwh": 4448.13773662768,
+      "network_loss_kwh": 694.429560968399,
+      "curtailment_plus_loss_kwh": 27824.69141538994,
+      "throughput_kwh": 86782.44569295093,
+      "modeled_operating_value_yuan": -12159265.127933135,
+      "runtime_s": 158141.2290094
+    }
+  },
+  "soh_minus_dynamic_fixed_cost": {
+    "requested_kwh": 0.0,
+    "served_kwh": 0.0,
+    "shed_kwh": 0.0,
+    "non_ev_unserved_kwh": -11.814337498286477,
+    "revenue_yuan": 0.0,
+    "aging_cost_yuan": 94.03679999999804,
+    "replacement_cost_yuan": 0.0,
+    "curtailment_kwh": -13.217297475235682,
+    "battery_loss_kwh": 1.2815213018902796,
+    "network_loss_kwh": 0.10672462973604979,
+    "curtailment_plus_loss_kwh": -11.829051543598325,
+    "throughput_kwh": 25.00647243039566,
+    "modeled_operating_value_yuan": 11722.944157782942,
+    "runtime_s": 51825.41214480005
+  },
+  "non_ev_penalty_sensitivity_yuan": {
+    "0": -91.393340503535,
+    "5": -32.321653012102615,
+    "10": 26.75003447932977,
+    "50": 499.32353441078885,
+    "100": 1090.0404093251127,
+    "1000": 11722.944157782942
+  },
+  "break_even_non_ev_penalty_yuan_per_kwh": 7.735799025276743,
+  "network_reconstruction": {
+    "fixed_price_bess": {
+      "steps": 3312,
+      "unverified_thermal_steps": 3312,
+      "voltage_violations": 0,
+      "min_voltage_pu": 0.996227162786066,
+      "max_voltage_pu": 1.0121873333333333,
+      "max_network_loss_error_kwh": 6.994405055138486e-14,
+      "soc_min": 0.2,
+      "soc_max": 0.9,
+      "terminal_soc_failures": 0,
+      "nonconverged_steps": 0,
+      "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+    },
+    "dynamic_fixed_cost": {
+      "steps": 3312,
+      "unverified_thermal_steps": 3312,
+      "voltage_violations": 0,
+      "min_voltage_pu": 0.996227162786066,
+      "max_voltage_pu": 1.0121873333333333,
+      "max_network_loss_error_kwh": 0.0,
+      "soc_min": 0.2,
+      "soc_max": 0.9,
+      "terminal_soc_failures": 0,
+      "nonconverged_steps": 0,
+      "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+    },
+    "soh_aware": {
+      "steps": 3312,
+      "unverified_thermal_steps": 3312,
+      "voltage_violations": 0,
+      "min_voltage_pu": 0.996227162786066,
+      "max_voltage_pu": 1.0121873333333333,
+      "max_network_loss_error_kwh": 6.994405055138486e-14,
+      "soc_min": 0.2,
+      "soc_max": 0.9,
+      "terminal_soc_failures": 0,
+      "nonconverged_steps": 0,
+      "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+    }
+  }
+}

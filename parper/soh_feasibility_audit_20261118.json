@@ -1,0 +1,199 @@
+{
+  "snapshot_date_cst": "2026-11-18",
+  "cost_and_constraint_audit": {
+    "completed_days": {
+      "fixed_price_bess": 90,
+      "dynamic_fixed_cost": 72,
+      "soh_aware": 72
+    },
+    "paired_days": 72,
+    "paired_first_date": "2020-05-01",
+    "paired_last_date": "2020-07-11",
+    "paired_totals": {
+      "fixed_price_bess": {
+        "requested_kwh": 8359.71,
+        "served_kwh": 7406.382986510755,
+        "shed_kwh": 953.3270134892455,
+        "non_ev_unserved_kwh": 13556.605019476207,
+        "revenue_yuan": 11109.574479766134,
+        "aging_cost_yuan": 22301.757100000003,
+        "replacement_cost_yuan": 0.0,
+        "curtailment_kwh": 22691.350519522875,
+        "battery_loss_kwh": 4571.78874252247,
+        "network_loss_kwh": 712.7194012180324,
+        "curtailment_plus_loss_kwh": 27975.858663263374,
+        "throughput_kwh": 89194.70535174978,
+        "modeled_operating_value_yuan": -13667668.173549268,
+        "runtime_s": 441.5839299
+      },
+      "dynamic_fixed_cost": {
+        "requested_kwh": 8359.71,
+        "served_kwh": 7406.382986510755,
+        "shed_kwh": 953.3270134892456,
+        "non_ev_unserved_kwh": 13560.658347091745,
+        "revenue_yuan": 17631.694538303087,
+        "aging_cost_yuan": 22300.82240000001,
+        "replacement_cost_yuan": 0.0,
+        "curtailment_kwh": 22695.38110512464,
+        "battery_loss_kwh": 4571.349783965192,
+        "network_loss_kwh": 713.1818740250773,
+        "curtailment_plus_loss_kwh": 27979.91276311491,
+        "throughput_kwh": 89186.14001240816,
+        "modeled_operating_value_yuan": -13665199.252523394,
+        "runtime_s": 160570.63065619994
+      },
+      "soh_aware": {
+        "requested_kwh": 8359.71,
+        "served_kwh": 7406.382986510755,
+        "shed_kwh": 953.3270134892455,
+        "non_ev_unserved_kwh": 13548.84401000321,
+        "revenue_yuan": 17631.694538303087,
+        "aging_cost_yuan": 22394.860200000003,
+        "replacement_cost_yuan": 0.0,
+        "curtailment_kwh": 22682.163807649405,
+        "battery_loss_kwh": 4572.631305245355,
+        "network_loss_kwh": 713.2885986538437,
+        "curtailment_plus_loss_kwh": 27968.083711548617,
+        "throughput_kwh": 89211.14648442567,
+        "modeled_operating_value_yuan": -13653476.309775364,
+        "runtime_s": 160701.27663100002
+      }
+    },
+    "soh_minus_dynamic_fixed_cost": {
+      "requested_kwh": 0.0,
+      "served_kwh": 0.0,
+      "shed_kwh": -1.1368683772161603e-13,
+      "non_ev_unserved_kwh": -11.814337088535467,
+      "revenue_yuan": 0.0,
+      "aging_cost_yuan": 94.0377999999946,
+      "replacement_cost_yuan": 0.0,
+      "curtailment_kwh": -13.217297475235682,
+      "battery_loss_kwh": 1.2815212801633606,
+      "network_loss_kwh": 0.10672462876641475,
+      "curtailment_plus_loss_kwh": -11.829051566292037,
+      "throughput_kwh": 25.00647201751417,
+      "modeled_operating_value_yuan": 11722.942748030648,
+      "runtime_s": 130.64597480007797
+    },
+    "non_ev_penalty_sensitivity_yuan": {
+      "0": -91.39434050481941,
+      "5": -32.322655062142076,
+      "10": 26.74903038053526,
+      "50": 499.32251392195394,
+      "100": 1090.0393683487273,
+      "1000": 11722.942748030648
+    },
+    "break_even_non_ev_penalty_yuan_per_kwh": 7.735883936603409,
+    "network_reconstruction": {
+      "fixed_price_bess": {
+        "steps": 3456,
+        "unverified_thermal_steps": 3456,
+        "voltage_violations": 0,
+        "min_voltage_pu": 0.996227162786066,
+        "max_voltage_pu": 1.0121873333333333,
+        "max_network_loss_error_kwh": 6.994405055138486e-14,
+        "soc_min": 0.2,
+        "soc_max": 0.9,
+        "terminal_soc_failures": 0,
+        "nonconverged_steps": 0,
+        "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+      },
+      "dynamic_fixed_cost": {
+        "steps": 3456,
+        "unverified_thermal_steps": 3456,
+        "voltage_violations": 0,
+        "min_voltage_pu": 0.996227162786066,
+        "max_voltage_pu": 1.0121873333333333,
+        "max_network_loss_error_kwh": 0.0,
+        "soc_min": 0.2,
+        "soc_max": 0.9,
+        "terminal_soc_failures": 0,
+        "nonconverged_steps": 0,
+        "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+      },
+      "soh_aware": {
+        "steps": 3456,
+        "unverified_thermal_steps": 3456,
+        "voltage_violations": 0,
+        "min_voltage_pu": 0.996227162786066,
+        "max_voltage_pu": 1.0121873333333333,
+        "max_network_loss_error_kwh": 6.994405055138486e-14,
+        "soc_min": 0.2,
+        "soc_max": 0.9,
+        "terminal_soc_failures": 0,
+        "nonconverged_steps": 0,
+        "max_daily_identity_residual_kwh": 2.3234747459355276e-10
+      }
+    }
+  },
+  "arms": {
+    "fixed_price_bess": {
+      "source_sha256": "f48f8eae9df82857890e7c33f561747d167a8fefad866179f47baab1326c6608",
+      "status": "continuous_diagnostic_completed",
+      "accepted_days": 90,
+      "recorded_days": 90,
+      "failed_days": [],
+      "state_chain_errors": [],
+      "max_income_identity_error_yuan": 0.0,
+      "max_capacity_identity_error_kwh": 0.0,
+      "max_marginal_coefficient_formula_error": 0.0,
+      "accepted_start_soh": 0.9,
+      "accepted_end_soh": 0.8958629823927825,
+      "accepted_first_coefficient": 0.08249579113843053,
+      "accepted_last_coefficient": 0.08249579113843053,
+      "accepted_end_capacity_kwh": 1791.725964785565
+    },
+    "dynamic_fixed_cost": {
+      "source_sha256": "9f49ee9dfbf11b5be8f01c8ca8c82c915c85d1708e32c4023d7e2316da938e7c",
+      "status": "continuous_diagnostic_failed_gate",
+      "accepted_days": 72,
+      "recorded_days": 73,
+      "failed_days": [
+        {
+          "date": "2020-07-12",
+          "status": "diagnostic_failed_gate",
+          "energy_identity_residual_kwh": 2.864908310584724e-11,
+          "nonconverged_steps": 1,
+          "nonconverged_timestamps": [
+            "2020-07-12T02:00:00+08:00"
+          ]
+        }
+      ],
+      "state_chain_errors": [],
+      "max_income_identity_error_yuan": 0.0,
+      "max_capacity_identity_error_kwh": 0.0,
+      "max_marginal_coefficient_formula_error": 0.0,
+      "accepted_start_soh": 0.9,
+      "accepted_end_soh": 0.8966548766125845,
+      "accepted_first_coefficient": 0.08249579113843053,
+      "accepted_last_coefficient": 0.08249579113843053,
+      "accepted_end_capacity_kwh": 1793.3097532251688
+    },
+    "soh_aware": {
+      "source_sha256": "1f303513663da8c7ea0f7a2fff49378c01baeb0e3d7c96cf338c1540b61639be",
+      "status": "continuous_diagnostic_failed_gate",
+      "accepted_days": 72,
+      "recorded_days": 73,
+      "failed_days": [
+        {
+          "date": "2020-07-12",
+          "status": "diagnostic_failed_gate",
+          "energy_identity_residual_kwh": 2.8762769943568856e-11,
+          "nonconverged_steps": 1,
+          "nonconverged_timestamps": [
+            "2020-07-12T02:00:00+08:00"
+          ]
+        }
+      ],
+      "state_chain_errors": [],
+      "max_income_identity_error_yuan": 0.0,
+      "max_capacity_identity_error_kwh": 0.0,
+      "max_marginal_coefficient_formula_error": 2.7755575615628914e-17,
+      "accepted_start_soh": 0.9,
+      "accepted_end_soh": 0.8966407709616112,
+      "accepted_first_coefficient": 0.08249579113843053,
+      "accepted_last_coefficient": 0.0828882968238162,
+      "accepted_end_capacity_kwh": 1793.2815419232224
+    }
+  }
+}

@@ -19,14 +19,24 @@ from src.game.forecast import ForecastBundle
 
 class ForecastProvider(Protocol):
     def bundle(self, timestamp: datetime, soc: float, soh: float,
-               current_ev_load_kw: float = 0.0) -> ForecastBundle:
+               current_ev_load_kw: float = 0.0,
+               current_ev_elapsed_hours: float = 0.0,
+               horizon_hours: Optional[int] = None) -> ForecastBundle:
         """Return one rolling forecast window."""
 
 
-def _window(values: List[float], start: int, horizon: int) -> List[float]:
+def _window(values: List[float], start: int, horizon: int,
+            *, cyclic: bool = False) -> List[float]:
     if not values:
         return [0.0] * horizon
-    return [float(values[(start + i) % len(values)]) for i in range(horizon)]
+    if cyclic:
+        return [float(values[(start + i) % len(values)]) for i in range(horizon)]
+    end = start + horizon
+    if start < 0 or end > len(values):
+        raise ValueError(
+            "预测窗口越过可用数据边界；请注入滚动预测模型，不能循环复用历史日曲线"
+        )
+    return [float(value) for value in values[start:end]]
 
 
 # 400 kW 光伏与 100 kW 风电的典型日出力（阶段性假设，待预测模块替换）
@@ -40,15 +50,19 @@ class CalibratedForecastProvider:
     """用真实交易标定的基础 EV 负荷驱动滚动调度。
 
     EV 负荷取 ``Dataset/processed/ev_calibration`` 中指定站点、指定日期的
-    ``normal_energy_kwh``（单位 kWh/h，数值上等于该小时平均功率 kW）。
+    ``normal_energy_kwh``（单位 kWh/h，数值上等于该小时平均功率 kW），
+    并按 ``ev_demand_scale`` 对整个负荷曲线做显式场景缩放。
     PV/Wind 暂用 400/100 kW 典型曲线，属阶段性假设，须在论文中标注；
     接入预测模块后应替换为本模块的 ``pv``/``wind`` 输入。
     """
 
-    def __init__(self, site="Expressway Service District C", date=None,
+    def __init__(self, site="Expressway Service District A", date=None,
                  horizon_hours=24, non_ev_load_kw=60.0,
                  calibration_dir=None, root=None,
-                 pv=None, wind=None, non_ev_load_kw_series=None):
+                 pv=None, wind=None, non_ev_load_kw_series=None,
+                 cyclic_profile=True, ev_demand_scale=1.0):
+        if ev_demand_scale <= 0:
+            raise ValueError("ev_demand_scale must be positive")
         root = Path(root) if root else Path(__file__).resolve().parents[2]
         calib = Path(calibration_dir) if calibration_dir else (
             root / "Dataset" / "processed" / "ev_calibration"
@@ -66,28 +80,35 @@ class CalibratedForecastProvider:
             values[int(row.hour)] = float(row.normal_energy_kwh)
         self.site = site
         self.date = str(date)
-        self.ev_load = values
+        self.ev_demand_scale = float(ev_demand_scale)
+        self.ev_load = [value * self.ev_demand_scale for value in values]
         self.horizon_hours = horizon_hours
         self.non_ev = (list(non_ev_load_kw_series) if non_ev_load_kw_series
                        else [float(non_ev_load_kw)] * 24)
         self.pv = list(pv) if pv is not None else list(_TYPICAL_PV_400)
         self.wind = list(wind) if wind is not None else list(_TYPICAL_WIND_100)
+        self.cyclic_profile = bool(cyclic_profile)
         self.start = datetime.fromisoformat(str(date))
 
     def bundle(self, timestamp: datetime, soc: float, soh: float,
-               current_ev_load_kw: float = 0.0) -> ForecastBundle:
-        offset = int((timestamp - self.start).total_seconds() // 3600) % 24
+               current_ev_load_kw: float = 0.0,
+               current_ev_elapsed_hours: float = 0.0,
+               horizon_hours: Optional[int] = None) -> ForecastBundle:
+        offset = int((timestamp - self.start).total_seconds() // 3600)
+        horizon = horizon_hours or self.horizon_hours
         return ForecastBundle(
             timestamp=timestamp,
-            horizon_hours=self.horizon_hours,
-            pv_forecast_kw=_window(self.pv, offset, self.horizon_hours),
-            wind_forecast_kw=_window(self.wind, offset, self.horizon_hours),
-            base_ev_load_forecast_kw=_window(self.ev_load, offset, self.horizon_hours),
-            non_ev_load_forecast_kw=_window(self.non_ev, offset, self.horizon_hours),
+            horizon_hours=horizon,
+            pv_forecast_kw=_window(self.pv, offset, horizon, cyclic=self.cyclic_profile),
+            wind_forecast_kw=_window(self.wind, offset, horizon, cyclic=self.cyclic_profile),
+            base_ev_load_forecast_kw=_window(self.ev_load, offset, horizon, cyclic=self.cyclic_profile),
+            non_ev_load_forecast_kw=_window(self.non_ev, offset, horizon, cyclic=self.cyclic_profile),
             current_ev_load_kw=current_ev_load_kw,
+            current_ev_elapsed_hours=current_ev_elapsed_hours,
             soc_current=soc,
             soh_current=soh,
-            history={"source": ["calibrated_ev", self.site, self.date]},
+            history={"source": ["calibrated_ev", self.site, self.date],
+                     "ev_demand_scale": self.ev_demand_scale},
         )
 
 
@@ -116,16 +137,20 @@ class DailyCsvForecastProvider:
             self.start = datetime(2024, 1, 1)
 
     def bundle(self, timestamp: datetime, soc: float, soh: float,
-               current_ev_load_kw: float = 0.0) -> ForecastBundle:
-        offset = int((timestamp - self.start).total_seconds() // 3600) % len(self.ev_load)
+               current_ev_load_kw: float = 0.0,
+               current_ev_elapsed_hours: float = 0.0,
+               horizon_hours: Optional[int] = None) -> ForecastBundle:
+        offset = int((timestamp - self.start).total_seconds() // 3600)
+        horizon = horizon_hours or self.horizon_hours
         return ForecastBundle(
             timestamp=timestamp,
-            horizon_hours=self.horizon_hours,
-            pv_forecast_kw=_window(self.pv, offset, self.horizon_hours),
-            wind_forecast_kw=_window(self.wind, offset, self.horizon_hours),
-            base_ev_load_forecast_kw=_window(self.ev_load, offset, self.horizon_hours),
-            non_ev_load_forecast_kw=_window(self.non_ev, offset, self.horizon_hours),
+            horizon_hours=horizon,
+            pv_forecast_kw=_window(self.pv, offset, horizon, cyclic=True),
+            wind_forecast_kw=_window(self.wind, offset, horizon, cyclic=True),
+            base_ev_load_forecast_kw=_window(self.ev_load, offset, horizon, cyclic=True),
+            non_ev_load_forecast_kw=_window(self.non_ev, offset, horizon, cyclic=True),
             current_ev_load_kw=current_ev_load_kw,
+            current_ev_elapsed_hours=current_ev_elapsed_hours,
             soc_current=soc,
             soh_current=soh,
             history={"source": [str(self.data_dir)]},
@@ -146,20 +171,24 @@ class CallableForecastProvider:
         self.horizon_hours = horizon_hours
 
     def bundle(self, timestamp: datetime, soc: float, soh: float,
-               current_ev_load_kw: float = 0.0) -> ForecastBundle:
-        prediction = self.predictor(timestamp, self.horizon_hours)
+               current_ev_load_kw: float = 0.0,
+               current_ev_elapsed_hours: float = 0.0,
+               horizon_hours: Optional[int] = None) -> ForecastBundle:
+        horizon = horizon_hours or self.horizon_hours
+        prediction = self.predictor(timestamp, horizon)
         required = {"pv", "wind", "ev_load"}
         missing = required - prediction.keys()
         if missing:
             raise ValueError(f"预测结果缺少字段: {sorted(missing)}")
         return ForecastBundle(
             timestamp=timestamp,
-            horizon_hours=self.horizon_hours,
+            horizon_hours=horizon,
             pv_forecast_kw=prediction["pv"],
             wind_forecast_kw=prediction["wind"],
             base_ev_load_forecast_kw=prediction["ev_load"],
-            non_ev_load_forecast_kw=prediction.get("non_ev_load", [0.0] * self.horizon_hours),
+            non_ev_load_forecast_kw=prediction.get("non_ev_load", [0.0] * horizon),
             current_ev_load_kw=current_ev_load_kw,
+            current_ev_elapsed_hours=current_ev_elapsed_hours,
             soc_current=soc,
             soh_current=soh,
         )

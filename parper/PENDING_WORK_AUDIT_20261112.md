@@ -1,0 +1,26 @@
+# Remaining work audit — 12 November 2026
+
+Deadline: 13 November 2026, 08:00 China Standard Time. This is the active audit for the second draft; completed and pending evidence remain separate.
+
+## Count
+
+Of the seven release items in `SECOND_DRAFT_DELIVERY.md`, **one is resolved, four are partially resolved, and two remain open** at the 13 November 07:49 CST review-copy snapshot. The frozen main configuration is complete. The chronologically split, locked Agent short-window test is complete within its one-hour scope, but its full-day fourth arm remains open; accounting, date-matched weather provenance, and the SOH-by-demand matrix are also partial. The continuous three-day state-transfer diagnostic finished with all original daily energy gates failed and an independent numerical sensitivity that explains the small residuals without replacing the failures. Full mechanism inference and author/submission metadata remain open.
+
+## Active work
+
+1. **SOH × demand matrix running; continuous three-day diagnostic complete with failed original gates.** The aligned 144-case checkpointed matrix covers P10/P50/P90 and SOH 1.00/0.90/0.80/0.70 with three distinct dates per demand stratum and separate capacity/cost switches. Cases reset independently each day; their within-day cost switch is dormant. A separate continuous 1–3 May three-arm test carried full BatteryState and SOC across all three days. Every original arm-day's daily energy residual exceeded the strict 1e-6 kWh gate slightly, and all failures remain visible. An independent tighter-numerics execution replay preserved actions, delivery, revenue and aging, localizing the small residual to the execution solver stopping tolerance. This secondary ledger does not overwrite the raw failed gate. The SOH-aware cost coefficient changed daily but produced no physical or aging benefit in this trajectory.
+2. **Agent-assisted solver — short-window test complete; full-day arm open.** The supervised price warm-start Agent trained on 357 dates, selected k=3 on 241 validation dates, and was locked before 60 held-out one-hour noon replays. Fifty-nine pairs passed the strict convergence gate. All economic and physical paired differences were zero; across all 60 dates, baseline/Agent runtime ratio was 0.9928 (95% seven-date block bootstrap interval 0.9781–1.0007), providing no acceleration evidence. One date failed the forecast-price residual gate in both arms and remains in raw data. The storage-only Q-learning result is separate.
+3. **Mechanism ablations and scenario inference — open.** Capacity and degradation-cost feedback need separate switches with matched initial coefficient. At a fixed within-day SOH, cost feedback is dormant by construction; a multiday health transition is required to identify its effect. Three purposive dates do not justify a population confidence interval. Low-SOH, supply-tight and renewable-surplus strata must be judged from inputs, not selected by favorable outputs.
+4. **Date-matched weather provenance — partially resolved.** Raw ERA5 GRIB inspection confirms `ssrd` records have one-hour `stepRange` (0–1 through 11–12) in both 2020 and 2021, and validity timestamps denote the hour end. The corrected runner uses that hour-ending value; the aligned two-hour energy gate passes. The PV irradiance and wind turbine curves remain engineering proxies. Site A's public transaction record does not provide a verified latitude/longitude, so grid point 1 (30.75°N, 120.00°E) cannot be certified as the nearest station point. This assumption remains explicit.
+5. **Author/submission metadata — open.** Names, affiliations, funding, conflicts, contributions, correspondence and final journal format require the author. These do not prevent the review copy from being complete.
+
+## Deadline snapshot and continuation
+
+At 07:49 CST, the frozen 144-case independent-day matrix had 42 gate-passing cases, six completed failed-gate cases, two running, and 94 pending. The completed paired set contains 20 capacity-switch pairs and 21 cost-switch pairs. No case had a BRI nonconvergence flag; source/input audits passed. A host-wide heartbeat gap of about 3 h 48 min on 12 November and a second overnight pause delayed progress; case elapsed times are therefore not pure solver CPU times. The manuscript and PDF contain this timestamped partial result. The user requested that experiments continue after the review-copy deadline; the frozen runner itself has an 08:00 stop and any post-deadline continuation must be separately identified, preserving its original files and thresholds.
+
+## Existing negative/failed evidence to preserve
+
+- Supply-tight 2021-05-04: three executable arms have zero paired EV-service and modeled-value differences; dynamic methods cost roughly 600–670 s versus about 4 s for fixed price.
+- Low-demand 2020-05-30: three arms again have equal physical and modeled-value outcomes.
+- High-renewable 2021-05-01: all three arms completed, but daily cumulative energy residual 1.408e-6 kWh exceeds the declared 1e-6 kWh gate. It stays failed; the dynamic revenue difference is tariff arithmetic on rigid common requests.
+- The Agent-assisted SOH-aware arm is now implemented and tested for a one-hour noon replay only. A full-day or continuous multi-day four-arm comparison remains open.

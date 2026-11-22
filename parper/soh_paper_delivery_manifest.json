@@ -1,0 +1,25 @@
+{
+  "status": "verified",
+  "files": [
+    {
+      "path": "SOH_game_dispatch_en.md",
+      "bytes": 31779,
+      "sha256": "6960d04f8f5658730be04264f3faa776a3a2e71decaa2e11f95402a35d30eb41"
+    },
+    {
+      "path": "SOH_game_dispatch_en.pdf",
+      "bytes": 818974,
+      "sha256": "6ff5635e13875dc2bc5d36451677489819ffed615d138dc951f95054a311f231"
+    },
+    {
+      "path": "SOH_game_dispatch_zh.md",
+      "bytes": 24341,
+      "sha256": "de11a76beccb15c3668bb5b20345968357c79082d52b62b16fa37ac3727b5a56"
+    },
+    {
+      "path": "SOH_game_dispatch_zh.pdf",
+      "bytes": 902484,
+      "sha256": "8e3b1b3aea7857cc68c053ffc310b08b6c46e630b7af934092bd19338b88554b"
+    }
+  ]
+}

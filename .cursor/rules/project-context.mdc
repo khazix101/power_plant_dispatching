@@ -1,0 +1,16 @@
+---
+description: Keep project-wide context and existing tools visible before making changes
+alwaysApply: true
+---
+
+# Project Context
+
+- At the start of a repository task, read `docs/PROJECT_CONTEXT.md`.
+- Treat that file as a generated index, not as a substitute for reading the relevant source.
+- Before writing a new script, search existing code with `rg` and inspect the index's entry points and tool list. Reuse or extend an existing module when it already covers the needed behavior.
+- When adding, moving, renaming, or deleting files, refresh the index with:
+  `pwsh -NoProfile -File scripts/update_project_index.ps1`
+- Refresh the index after a structural change and before reporting the task complete. Do not refresh it for every ordinary source edit.
+- Use Git status and the index together. Existing uncommitted changes belong to the user or an earlier task unless the current task clearly created them; do not revert them.
+- Treat `Dataset/`, `output/`, `local/`, `tmp/`, caches, and `.opencode/` as excluded from the compact source tree. Inspect them only when the task requires their contents.
+- Keep project-facing figure and table text in English, as recorded in the paper workspace context.

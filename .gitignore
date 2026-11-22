@@ -40,3 +40,18 @@ env/
 
 # Local-only research materials, tests, screenshots, and generated results
 local/
+
+# Local integrated team worktrees (each workspace is a separate linked checkout)
+/workspaces/
+
+# Temporary runs and generated review artifacts; source manuscripts and figures stay tracked
+/tmp/
+/parper/agent_runs/
+/parper/experiment_runs/
+/parper/pdf_review/
+/parper/feasibility_pdf_review_*/
+/parper/zh_pdf_review/
+/parper/review_snapshots/
+/parper/*_render-*.png
+/parper/soh_qa_*.png
+/parper/soh_contact_*.png

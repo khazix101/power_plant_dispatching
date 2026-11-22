@@ -63,4 +63,30 @@ decision = controller.step(bundle)
 The rolling controller returns the current-hour price, EV service, and BESS
 power. The dynamic DC branch executes those values through
 `DynamicDCSFSEController` and `DCMicrogridPowerFlow`; it does not depend on an
-the DC network model.
+external grid model.
+
+## Runtime forecast provider
+
+`src.game.forecast_provider.DailyCsvForecastProvider` converts the validated
+`data/A.csv`, `data/B.csv`, and `data/C.csv` daily files into rolling
+`ForecastBundle` windows. `CallableForecastProvider` is the adapter for a
+trained LightGBM or deep-learning inference function. The complete 24-hour
+experiment is launched with:
+
+```powershell
+D:\miniconda3\python.exe scripts/run_24h_dc_experiment.py
+```
+
+The experiment records EV service, shedding, renewable curtailment, voltage,
+line current, SOC, SOH degradation, and two baselines under `local/results/`:
+the primary `fixed_price_plus_optimal_bess` baseline (fixed price 1.2 with the
+same BESS optimization) and the `no_storage` ablation. The fixed-price
+baseline keeps both planned MILP profit and the realized DC execution metrics;
+they must not be conflated when the simplified planning model and the DC
+network have different loss/feasibility details.
+
+The DC execution path uses 0.5-hour dispatch intervals. `current_ev_load_kw`
+is the average power measured over the elapsed half-hour; the controller
+subtracts that measured energy from the current hourly forecast and dispatches
+the remaining energy. Backlog may cross midnight, while backlog above the
+configured six-hour/480-kW limit is reported as `overflow_unserved_kwh`.

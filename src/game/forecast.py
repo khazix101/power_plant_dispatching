@@ -32,6 +32,8 @@ class ForecastBundle:
     base_ev_load_forecast_kw: List[float]
     non_ev_load_forecast_kw: List[float] = field(default_factory=list)
     current_ev_load_kw: float = 0.0
+    # 已计量窗口的平均功率；当前 DC 路径固定由上层传入 0.5 h。
+    current_ev_elapsed_hours: float = 0.0
     base_ev_load_forecast_kvar: Optional[List[float]] = None
     non_ev_load_forecast_kvar: Optional[List[float]] = None
 
@@ -79,6 +81,8 @@ class ForecastBundle:
             raise ValueError("reserve_kwh 不允许为负")
         if self.current_ev_load_kw < 0:
             raise ValueError("current_ev_load_kw 不允许为负")
+        if not 0.0 <= self.current_ev_elapsed_hours < 1.0:
+            raise ValueError("current_ev_elapsed_hours 必须在 [0, 1) 内")
 
     @property
     def total_base_load_kw(self) -> List[float]:

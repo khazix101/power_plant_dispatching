@@ -11,12 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.game.dc_microgrid import DCMicrogridPowerFlow, DCSOCConfig, DCSOCState, balance_dc_step
+from src.game.dc_microgrid import (
+    DCNetworkConfig, DCMicrogridPowerFlow, DCSOCConfig, DCSOCState,
+    balance_dc_step,
+)
 from src.game.baseline import run_fixed_price_baseline
 from src.game.case import BatteryParams, EVUser, GameCase
 from src.game.dynamic_dc import DynamicDCSFSEController
 from src.game.forecast_provider import CalibratedForecastProvider
-from src.game.soh import evaluate_soh
 
 
 def run() -> dict:
@@ -25,40 +27,59 @@ def run() -> dict:
     controller.reset(soc=0.5, soh=1.0)
     start = provider.start
     decisions = []
-    for hour in range(24):
-        timestamp = start + timedelta(hours=hour)
+    for step in range(48):
+        hour = step // 2
+        elapsed = 0.5 if step % 2 else 0.0
+        timestamp = start + timedelta(minutes=30 * step)
         bundle = provider.bundle(
             timestamp, controller.soc.soc, controller.soh,
             current_ev_load_kw=provider.ev_load[hour % 24],
+            current_ev_elapsed_hours=elapsed,
         )
         decisions.append(controller.step(bundle))
 
     soc = [0.5] + [d.soc for d in decisions]
     power = [d.storage_kw for d in decisions]
-    aging = evaluate_soh(soc, power, c_new=controller.soc_config.capacity_kwh * 1000.0)
+    aging = controller.finalize_day(soc, power, interval_hours=0.5)
     flow = [d.power_flow for d in decisions]
     return {
         "method": "dynamic_dc_bri",
+        "comparison_status": "descriptive_only_unmatched_baseline_protocols",
+        "input_provenance": {
+            "site": provider.site,
+            "date": provider.date,
+            "ev_source": "Dataset/processed/ev_calibration/expressway_hourly_ev_load.csv",
+            "renewables_source": "assumed_400kw_pv_100kw_wind_typical_day",
+            "weather_date_matched": False,
+            "forecast_profile_cyclic": provider.cyclic_profile,
+            "ev_service_cap_kw": controller.ev_service_limit_kw,
+            "ev_cap_scenario_id": f"cap_{controller.ev_service_limit_kw:g}kw",
+            "frozen_document_ev_cap_kw": 480.0,
+            "ev_cap_discrepancy_unresolved": controller.ev_service_limit_kw != 480.0,
+        },
         "hours": 24,
+        "dispatch_steps": len(decisions),
+        "dispatch_interval_hours": 0.5,
         "price": [d.price for d in decisions],
         "storage_kw": power,
-        "ev_requested_kwh": sum(d.ev_requested_kw for d in decisions),
-        "ev_served_kwh": sum(d.ev_served_kw for d in decisions),
-        "ev_shed_kwh": sum(d.ev_shed_kw for d in decisions),
+        "ev_requested_kwh": sum(d.ev_requested_kw * 0.5 for d in decisions),
+        "ev_served_kwh": sum(d.ev_served_kw * 0.5 for d in decisions),
+        "ev_shed_kwh": sum(d.ev_shed_kw * 0.5 for d in decisions),
         "renewable_curtailed_kwh": sum(
-            d.pv_curtailed_kw + d.wind_curtailed_kw for d in decisions
+            (d.pv_curtailed_kw + d.wind_curtailed_kw) * 0.5 for d in decisions
         ),
         "soc_start": soc[0],
         "soc_end": soc[-1],
         "soh_delta": aging["delta_soh_total"],
-        "degradation_cost": aging["cost_total"],
+        "degradation_cost": aging["aging_cost_yuan"],
+        "overflow_unserved_kwh": sum(d.overflow_unserved_kwh for d in decisions),
         "voltage_min_pu": min(f["vmin_pu"] for f in flow),
         "voltage_max_pu": max(f["vmax_pu"] for f in flow),
         "line_current_max_a": max(
             (branch["current_a"] for f in flow for branch in f["branches"]),
             default=0.0,
         ),
-        "ev_revenue_yuan": sum(d.price * d.ev_served_kw for d in decisions),
+        "ev_revenue_yuan": sum(d.price * d.ev_served_kw * 0.5 for d in decisions),
         "baseline_fixed_price_bess": run_fixed_price_bess_baseline(provider),
         "baseline_no_storage": run_no_storage_baseline(provider),
     }
@@ -67,7 +88,7 @@ def run() -> dict:
 def _build_daily_case(provider: CalibratedForecastProvider) -> GameCase:
     """Build the common 24-hour case used by the fixed-price baseline."""
     horizon = 24
-    cap_kw = 480.0
+    cap_kw = 960.0
     users = []
     for hour, load_kw in enumerate(provider.ev_load[:horizon]):
         energy = max(0.0, float(load_kw))
@@ -93,13 +114,13 @@ def _build_daily_case(provider: CalibratedForecastProvider) -> GameCase:
             capacity_kwh=2000.0, power_kw=800.0, soc0=0.5,
             soc_min=0.1, soc_max=0.9, soc_end_min=0.2,
         ),
-        price_levels=[0.6, 0.9, 1.2, 1.5, 1.8],
+        price_levels=[1.5, 1.7, 1.9, 2.1, 2.3, 2.5],
         penalty_shed=100.0,
         penalty_curt=0.2,
     )
 
 
-def run_fixed_price_bess_baseline(provider: DailyCsvForecastProvider,
+def run_fixed_price_bess_baseline(provider: CalibratedForecastProvider,
                                   fixed_price: float = 1.2) -> dict:
     """Fixed price + optimal BESS baseline executed on the DC network."""
     case = _build_daily_case(provider)
@@ -117,10 +138,12 @@ def run_fixed_price_bess_baseline(provider: DailyCsvForecastProvider,
         flows.append(balance_dc_step(
             network, state, case.pv[hour], case.wind[hour], ev_profile[hour],
             case.base_load[hour], planned["p_dis"][hour] - planned["p_ch"][hour],
-            ev_service_limit_kw=800.0,
+            ev_service_limit_kw=DCNetworkConfig().ev_rated_kw,
         ))
     return {
         "method": "fixed_price_plus_optimal_bess",
+        "dispatch_interval_hours": 1.0,
+        "comparison_status": "descriptive_only_hourly_endogenous_request",
         "fixed_price": fixed_price,
         "planned_profit_yuan": planned["profit"],
         "planned_storage_kw": [
@@ -143,7 +166,7 @@ def run_fixed_price_bess_baseline(provider: DailyCsvForecastProvider,
     }
 
 
-def run_no_storage_baseline(provider: DailyCsvForecastProvider) -> dict:
+def run_no_storage_baseline(provider: CalibratedForecastProvider) -> dict:
     """Serve the same base EV demand without BESS or price shifting."""
     config = DCSOCConfig(capacity_kwh=1.0, power_kw=0.0, soc_min=0.1,
                          soc_reserve=0.1, soc_max=0.9)
@@ -161,7 +184,7 @@ def run_no_storage_baseline(provider: DailyCsvForecastProvider) -> dict:
         flow = balance_dc_step(
             network, state, bundle.pv_forecast_kw[0], bundle.wind_forecast_kw[0],
             request, bundle.non_ev_load_forecast_kw[0], 0.0,
-            ev_service_limit_kw=800.0,
+            ev_service_limit_kw=DCNetworkConfig().ev_rated_kw,
         )
         requested += request
         served += flow["ev_served_kw"]
@@ -171,6 +194,8 @@ def run_no_storage_baseline(provider: DailyCsvForecastProvider) -> dict:
         vmaxs.append(flow["power_flow"]["vmax_pu"])
     return {
         "method": "no_storage",
+        "dispatch_interval_hours": 1.0,
+        "comparison_status": "descriptive_only_hourly_base_request",
         "ev_requested_kwh": requested,
         "ev_served_kwh": served,
         "ev_shed_kwh": shed,

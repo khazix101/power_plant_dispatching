@@ -1,8 +1,8 @@
 """运行直流微网动态 SOC 滚动主从博弈示例。
 
-时间步长 1 h，滚动窗口 6 h，逐小时前移。
+时间步长 0.5 h，滚动窗口 6 h，逐半小时前移。
 负荷量级采用真实高速服务区观测尺度（小时峰值约 226 kW），
-EV 上限由 8 桩 x 60 kW = 480 kW 约束。
+EV 上限由 8 桩 x 120 kW = 960 kW 约束。
 """
 
 from datetime import datetime, timedelta
@@ -30,28 +30,32 @@ NON_EV_24H = [60.0] * 24
 
 
 def _window(series, start, length):
-    chunk = list(series[start:start + length])
-    return chunk + [0.0] * (length - len(chunk))
+    return [series[(start + i) % len(series)] for i in range(length)]
 
 
 def main():
     controller = DynamicDCSFSEController(horizon_hours=6, max_sweeps=1)
     controller.reset(soc=0.5)
     start = datetime(2024, 1, 1)
-    for hour in range(24):
-        window = 6
+    decisions = []
+    for step in range(48):
+        hour = step // 2
+        elapsed = 0.5 if step % 2 else 0.0
+        window = 7
         bundle = ForecastBundle(
-            timestamp=start + timedelta(hours=hour),
+            timestamp=start + timedelta(minutes=30 * step),
             horizon_hours=window,
             pv_forecast_kw=_window(PV_24H, hour, window),
             wind_forecast_kw=_window(WIND_24H, hour, window),
             base_ev_load_forecast_kw=_window(EV_24H, hour, window),
             non_ev_load_forecast_kw=_window(NON_EV_24H, hour, window),
             current_ev_load_kw=EV_24H[hour],
+            current_ev_elapsed_hours=elapsed,
             soc_current=controller.soc.soc,
             soh_current=controller.soh,
         )
         decision = controller.step(bundle)
+        decisions.append(decision)
         print(
             f"{decision.timestamp:%H:%M} price={decision.price:.2f} "
             f"P_BESS={decision.storage_kw:7.2f}kW "
@@ -59,6 +63,16 @@ def main():
             f"shed={decision.ev_shed_kw:5.1f}kW SOC={decision.soc:.3f} "
             f"loss={decision.power_flow['losses_kw']:.2f}kW"
         )
+    aging = controller.finalize_day(
+        [0.5] + [d.soc for d in decisions],
+        [d.storage_kw for d in decisions],
+        interval_hours=0.5,
+    )
+    print(
+        f"DAY_END SOH={aging['soh_end']:.8f} "
+        f"aging_cost={aging['aging_cost_yuan']:.2f} "
+        f"overflow_unserved={sum(d.overflow_unserved_kwh for d in decisions):.2f}kWh"
+    )
 
 
 if __name__ == "__main__":

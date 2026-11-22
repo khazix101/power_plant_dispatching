@@ -1,0 +1,1709 @@
+{
+  "updated_cst": "2026-11-13T22:19:48+08:00",
+  "configuration": {
+    "pv_kw": 400,
+    "wind_kw": 100,
+    "bess_kwh": 2000,
+    "pcs_kw": 800,
+    "ev_kw": 480
+  },
+  "superseded_results": [
+    "experiment_summary.csv",
+    "three_date_paired_summary.csv",
+    "earlier 24-hour and three-date weather-driven outputs using same-hour SSRD validity"
+  ],
+  "aligned_short_window": {
+    "status": "short_window_diagnostic_only",
+    "arms": {
+      "fixed_price_bess": {
+        "status": "diagnostic_completed",
+        "summary": {
+          "served_kwh": 124.47539844064273,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 0.0,
+          "battery_loss_kwh": 8.786647014035802,
+          "network_loss_kwh": 1.0049041080781258,
+          "revenue_yuan": 186.7130976609641,
+          "non_ev_unserved_kwh": 0.0,
+          "non_ev_served_kwh": 120.0,
+          "requested_kwh": 124.47539844064273,
+          "service_rate": 1.0,
+          "max_abs_step_energy_residual_kwh": 0.0,
+          "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+          "renewable_input_kwh": 78.53400928204049,
+          "useful_delivery_kwh": 244.47539844064272,
+          "stored_energy_change_kwh": -175.73294028071626,
+          "energy_identity_residual_kwh": 8.526512829121202e-14,
+          "throughput_kwh": 166.9462932666804,
+          "curtailment_plus_loss_kwh": 9.791551122113928,
+          "soc_start": 0.5,
+          "soc_end": 0.4023705887329354,
+          "terminal_soc_min": 0.2,
+          "terminal_soc_feasible": true,
+          "soh_start": 0.9,
+          "soh_end_posthoc": 0.89999693444177,
+          "aging_cost_yuan": 20.4371,
+          "revenue_less_aging_yuan": 166.2759976609641,
+          "runtime_s": 0.2721640999999999,
+          "nonconverged_steps": 0
+        }
+      },
+      "dynamic_fixed_cost": {
+        "status": "diagnostic_completed",
+        "summary": {
+          "served_kwh": 124.47539844064273,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 0.0,
+          "battery_loss_kwh": 8.786647014035802,
+          "network_loss_kwh": 1.0049041080781258,
+          "revenue_yuan": 311.1884961016068,
+          "non_ev_unserved_kwh": 0.0,
+          "non_ev_served_kwh": 120.0,
+          "requested_kwh": 124.47539844064273,
+          "service_rate": 1.0,
+          "max_abs_step_energy_residual_kwh": 0.0,
+          "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+          "renewable_input_kwh": 78.53400928204049,
+          "useful_delivery_kwh": 244.47539844064272,
+          "stored_energy_change_kwh": -175.73294028071626,
+          "energy_identity_residual_kwh": 8.526512829121202e-14,
+          "throughput_kwh": 166.9462932666804,
+          "curtailment_plus_loss_kwh": 9.791551122113928,
+          "soc_start": 0.5,
+          "soc_end": 0.4023705887329354,
+          "terminal_soc_min": 0.2,
+          "terminal_soc_feasible": true,
+          "soh_start": 0.9,
+          "soh_end_posthoc": 0.89999693444177,
+          "aging_cost_yuan": 20.4371,
+          "revenue_less_aging_yuan": 290.7513961016068,
+          "runtime_s": 6.572852200000001,
+          "nonconverged_steps": 0
+        }
+      },
+      "soh_aware": {
+        "status": "diagnostic_completed",
+        "summary": {
+          "served_kwh": 124.47539844064273,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 0.0,
+          "battery_loss_kwh": 8.786647014035802,
+          "network_loss_kwh": 1.0049041080781258,
+          "revenue_yuan": 311.1884961016068,
+          "non_ev_unserved_kwh": 0.0,
+          "non_ev_served_kwh": 120.0,
+          "requested_kwh": 124.47539844064273,
+          "service_rate": 1.0,
+          "max_abs_step_energy_residual_kwh": 0.0,
+          "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+          "renewable_input_kwh": 78.53400928204049,
+          "useful_delivery_kwh": 244.47539844064272,
+          "stored_energy_change_kwh": -175.73294028071626,
+          "energy_identity_residual_kwh": 8.526512829121202e-14,
+          "throughput_kwh": 166.9462932666804,
+          "curtailment_plus_loss_kwh": 9.791551122113928,
+          "soc_start": 0.5,
+          "soc_end": 0.4023705887329354,
+          "terminal_soc_min": 0.2,
+          "terminal_soc_feasible": true,
+          "soh_start": 0.9,
+          "soh_end_posthoc": 0.89999693444177,
+          "aging_cost_yuan": 20.4371,
+          "revenue_less_aging_yuan": 290.7513961016068,
+          "runtime_s": 6.5573728000000004,
+          "nonconverged_steps": 0
+        }
+      },
+      "agent_soh_aware": {
+        "status": "not_implemented",
+        "summary": null
+      }
+    },
+    "scope": "four half-hour steps on 2021-05-04; accounting diagnostic only"
+  },
+  "agent_noon": {
+    "status": "completed",
+    "training_dates": 357,
+    "validation_rows": 723,
+    "test_dates_attempted": 60,
+    "paired_converged_dates": 59,
+    "nonconverged_dates": [
+      "2021-12-16"
+    ],
+    "paired_mean_agent_minus_baseline": {
+      "runtime_s": -0.0006882084745711836,
+      "requested_kwh": 0.0,
+      "served_kwh": 0.0,
+      "shed_kwh": 0.0,
+      "revenue_yuan": 0.0,
+      "throughput_kwh": 0.0,
+      "curtail_kwh": 0.0,
+      "aging_cost_yuan": 0.0,
+      "delta_soh_total": 0.0,
+      "soc_end": 0.0,
+      "soh_end": 0.0
+    },
+    "runtime_uncertainty_all_completed_dates": {
+      "method": "circular_moving_block_bootstrap",
+      "block_dates": 7,
+      "resamples": 10000,
+      "seed": 11,
+      "n_dates": 60,
+      "metrics": {
+        "runtime_s": {
+          "mean_agent_minus_baseline": 0.020150710000005272,
+          "percentile_95_interval": [
+            -0.002048859208338456,
+            0.06192272750001275
+          ]
+        },
+        "runtime_speedup_baseline_over_agent": {
+          "ratio_of_means": 0.9927657521823369,
+          "percentile_95_interval": [
+            0.9781248911741027,
+            1.000744501339988
+          ]
+        }
+      },
+      "interpretation": "Historical-date variability conditional on one locked model; not training-seed or repeated-hardware timing uncertainty"
+    },
+    "scope": "two half-hour noon executed steps; no full-day claim"
+  },
+  "soh_demand_matrix": {
+    "generated_utc": "2026-11-13T11:00:06.305520+00:00",
+    "planned_cases": 144,
+    "status_counts": {
+      "diagnostic_completed": 136,
+      "diagnostic_failed_gate": 8
+    },
+    "all_planned_terminal": true,
+    "reporting_cutoff_local": "2026-11-14T08:00:00+08:00",
+    "compute_deadline_local": "2026-11-14T08:00:00+08:00",
+    "completed_half_hour_steps": 6912,
+    "planned_half_hour_steps": 6912,
+    "n_cases_with_nonconverged_steps": 0,
+    "n_nonconverged_steps": 0,
+    "complete_capacity_date_pairs": 66,
+    "complete_cost_date_pairs": 68,
+    "capacity_pairs_with_planning_difference_masked_by_execution": 28,
+    "max_capacity_pair_planned_bess_difference_kw": 250.313270533375,
+    "max_capacity_pair_executed_bess_difference_kw": 246.27054345421828,
+    "max_capacity_pair_abs_served_delta_kwh": 1.1368683772161603e-13,
+    "max_cost_pair_abs_executed_bess_difference_kw": 0.0,
+    "max_cost_pair_abs_aging_cost_difference_yuan": 0.0,
+    "runtime_wall_s": 99959.176078,
+    "summed_step_elapsed_runtime_s_all_attempts_including_host_suspension": 191801.0988554999,
+    "runtime_measurement_note": "perf_counter elapsed time, not solver CPU; a host-wide heartbeat gap can inflate step runtime.",
+    "completed_case_runtime_range_s": [
+      393.3753018999996,
+      26529.89884329999
+    ],
+    "physical_residual_max_all_attempts": {
+      "power_balance_residual_kw": 9.98846445554591e-07,
+      "energy_balance_residual_kwh": 4.994232227772955e-07,
+      "soc_transition_residual_fraction": 1.1102230246251565e-16
+    },
+    "cell_counts": [
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_completed": 2,
+          "diagnostic_failed_gate": 1
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_completed": 2,
+          "diagnostic_failed_gate": 1
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.7,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.8,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 0.9,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 2,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 1,
+        "status_counts": {
+          "diagnostic_failed_gate": 1,
+          "diagnostic_completed": 2
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P10",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P50",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      },
+      {
+        "initial_soh": 1.0,
+        "demand_quantile": "P90",
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "n_planned": 3,
+        "n_gate_pass": 3,
+        "n_nonconverged": 0,
+        "n_failed_or_failed_gate": 0,
+        "status_counts": {
+          "diagnostic_completed": 3
+        }
+      }
+    ],
+    "failures": [
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.9,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": true,
+        "case_id": "P90_2021-09-17_soh0.9_cap1_cost1",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.9_cap1_cost1.json",
+        "source_sha256": "67f561e1ee20c00c42d963fe8dd5eb7977afaa600acd11a928a0b713d93f5fb3",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 459.92,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 380.83144899134805,
+          "battery_loss_kwh": 112.58626623075934,
+          "network_loss_kwh": 22.37541689097064,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 1149.7999999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": 97.07950041356388,
+          "energy_identity_residual_kwh": 1.0485820638450605e-06,
+          "throughput_kwh": 2199.3648231287534,
+          "curtailment_plus_loss_kwh": 515.7931321130781,
+          "aging_cost_yuan": 449.332,
+          "soc_end": 0.5539330557853133,
+          "soh_end_before_replacement": 0.8999326002036242,
+          "soh_end_after_boundary_transition": 0.8999326002036242,
+          "replacement_cost_yuan": 0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 0,
+          "nonconverged_steps": 0,
+          "runtime_s": 1011.0273087000014
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 7.455917909737764e-07,
+          "energy_balance_residual_kwh": 3.727958954868882e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      },
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.9,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "case_id": "P90_2021-09-17_soh0.9_cap0_cost1",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.9_cap0_cost1.json",
+        "source_sha256": "7bc218040e13e353b86e8ba556da853c1c932baadfd77874646a8628addb9176",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 459.92,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 376.00981520265236,
+          "battery_loss_kwh": 112.85671520608565,
+          "network_loss_kwh": 21.788070565633877,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 1149.7999999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": 102.21803094476394,
+          "energy_identity_residual_kwh": 1.6560881448413056e-06,
+          "throughput_kwh": 2204.7738026352795,
+          "curtailment_plus_loss_kwh": 510.6546009743719,
+          "aging_cost_yuan": 450.1575,
+          "soc_end": 0.5567877949693133,
+          "soh_end_before_replacement": 0.8999324763745459,
+          "soh_end_after_boundary_transition": 0.8999324763745459,
+          "replacement_cost_yuan": 0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 1,
+          "nonconverged_steps": 0,
+          "runtime_s": 1026.649454999998
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 9.98846445554591e-07,
+          "energy_balance_residual_kwh": 4.994232227772955e-07,
+          "soc_transition_residual_fraction": 1.1102230246251565e-16
+        }
+      },
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.9,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": true,
+        "degradation_cost_feedback_enabled": false,
+        "case_id": "P90_2021-09-17_soh0.9_cap1_cost0",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.9_cap1_cost0.json",
+        "source_sha256": "c0636a76412e82420ba7becfd37cce23515919fc1578a2778cc004a3b2192665",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 459.92,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 380.83144899134805,
+          "battery_loss_kwh": 112.58626623075934,
+          "network_loss_kwh": 22.37541689097064,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 1149.7999999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": 97.07950041356388,
+          "energy_identity_residual_kwh": 1.0485820638450605e-06,
+          "throughput_kwh": 2199.3648231287534,
+          "curtailment_plus_loss_kwh": 515.7931321130781,
+          "aging_cost_yuan": 449.332,
+          "soc_end": 0.5539330557853133,
+          "soh_end_before_replacement": 0.8999326002036242,
+          "soh_end_after_boundary_transition": 0.8999326002036242,
+          "replacement_cost_yuan": 0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 0,
+          "nonconverged_steps": 0,
+          "runtime_s": 1007.949502700003
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 7.455917909737764e-07,
+          "energy_balance_residual_kwh": 3.727958954868882e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      },
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.9,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "case_id": "P90_2021-09-17_soh0.9_cap0_cost0",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.9_cap0_cost0.json",
+        "source_sha256": "0caeb26743e9aa407b521174d543c5fed1bf1292a0e97e4dac558e9d4a6815a1",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 459.92,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 376.00981520265236,
+          "battery_loss_kwh": 112.85671520608565,
+          "network_loss_kwh": 21.788070565633877,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 1149.7999999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": 102.21803094476394,
+          "energy_identity_residual_kwh": 1.6560881448413056e-06,
+          "throughput_kwh": 2204.7738026352795,
+          "curtailment_plus_loss_kwh": 510.6546009743719,
+          "aging_cost_yuan": 450.1575,
+          "soc_end": 0.5567877949693133,
+          "soh_end_before_replacement": 0.8999324763745459,
+          "soh_end_after_boundary_transition": 0.8999324763745459,
+          "replacement_cost_yuan": 0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 1,
+          "nonconverged_steps": 0,
+          "runtime_s": 1024.6019800999948
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 9.98846445554591e-07,
+          "energy_balance_residual_kwh": 4.994232227772955e-07,
+          "soc_transition_residual_fraction": 1.1102230246251565e-16
+        }
+      },
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.7,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "case_id": "P90_2021-09-17_soh0.7_cap0_cost1",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.7_cap0_cost1.json",
+        "source_sha256": "934d0e2e6c99028d13967a9e8b1af068b4176bb3e63f4d48f2967b11a6c17aa2",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 452.89,
+          "shed_kwh": 7.03,
+          "curtailment_kwh": 556.4520035437023,
+          "battery_loss_kwh": 103.46730151949704,
+          "network_loss_kwh": 19.662502789051192,
+          "non_ev_served_kwh": 1438.102793666509,
+          "non_ev_unserved_kwh": 1.897206333491054,
+          "revenue_yuan": 1132.2249999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 0.9847147329970429,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": -57.78196905523592,
+          "energy_identity_residual_kwh": 1.111700683509298e-06,
+          "throughput_kwh": 2017.4572945456923,
+          "curtailment_plus_loss_kwh": 679.5818078522506,
+          "aging_cost_yuan": 442.7646,
+          "soc_end": 0.4587271649605458,
+          "soh_end_before_replacement": 0.6999335853151675,
+          "soh_end_after_boundary_transition": 1.0,
+          "replacement_cost_yuan": 1900000.0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 2,
+          "nonconverged_steps": 0,
+          "runtime_s": 1234.417044299982
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.10606601717798213,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 7.760141471635507e-07,
+          "energy_balance_residual_kwh": 3.8800707358177533e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      },
+      {
+        "demand_quantile": "P90",
+        "date": "2021-09-17",
+        "target_quantile_daily_ev_kwh": 460.01022585669784,
+        "observed_daily_ev_kwh": 459.92,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-09-17"
+        },
+        "initial_soh": 0.7,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "case_id": "P90_2021-09-17_soh0.7_cap0_cost0",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P90_2021-09-17_soh0.7_cap0_cost0.json",
+        "source_sha256": "997075a25eab3d001131c7c39ecb8550ce08bdaeae02873bf6abf9ac324f8b8f",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 452.89,
+          "shed_kwh": 7.03,
+          "curtailment_kwh": 556.4520035437023,
+          "battery_loss_kwh": 103.46730151949704,
+          "network_loss_kwh": 19.662502789051192,
+          "non_ev_served_kwh": 1438.102793666509,
+          "non_ev_unserved_kwh": 1.897206333491054,
+          "revenue_yuan": 1132.2249999999997,
+          "requested_kwh": 459.92,
+          "service_rate": 0.9847147329970429,
+          "renewable_input_kwh": 2512.792633575224,
+          "stored_energy_change_kwh": -57.78196905523592,
+          "energy_identity_residual_kwh": 1.111700683509298e-06,
+          "throughput_kwh": 2017.4572945456923,
+          "curtailment_plus_loss_kwh": 679.5818078522506,
+          "aging_cost_yuan": 442.7646,
+          "soc_end": 0.4587271649605458,
+          "soh_end_before_replacement": 0.6999335853151675,
+          "soh_end_after_boundary_transition": 1.0,
+          "replacement_cost_yuan": 1900000.0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 2,
+          "nonconverged_steps": 0,
+          "runtime_s": 1543.2027925999791
+        },
+        "trace_sha256": "405f0880edd7227914814f490d29f01328d14eb591775444541a69105307bd46",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.10606601717798213,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 7.760141471635507e-07,
+          "energy_balance_residual_kwh": 3.8800707358177533e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      },
+      {
+        "demand_quantile": "P50",
+        "date": "2021-05-29",
+        "target_quantile_daily_ev_kwh": 193.26999999999998,
+        "observed_daily_ev_kwh": 193.41,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-05-29"
+        },
+        "initial_soh": 0.7,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": true,
+        "case_id": "P50_2021-05-29_soh0.7_cap0_cost1",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P50_2021-05-29_soh0.7_cap0_cost1.json",
+        "source_sha256": "d16f696fb1030c6a1929e97ea6d8bf6cab8eabdb0755b8a53accffa988d29d03",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 193.41000000000005,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 588.8013299969375,
+          "battery_loss_kwh": 93.11496896588505,
+          "network_loss_kwh": 16.545614330902012,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 483.52500000000003,
+          "requested_kwh": 193.41000000000005,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2464.7789552510485,
+          "stored_energy_change_kwh": 132.9070405037093,
+          "energy_identity_residual_kwh": 1.4536147432409052e-06,
+          "throughput_kwh": 1820.3435493215966,
+          "curtailment_plus_loss_kwh": 698.4619132937246,
+          "aging_cost_yuan": 425.6524,
+          "soc_end": 0.5949336003597924,
+          "soh_end_before_replacement": 0.6999361521391867,
+          "soh_end_after_boundary_transition": 1.0,
+          "replacement_cost_yuan": 1900000.0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 2,
+          "nonconverged_steps": 0,
+          "runtime_s": 962.9000424999831
+        },
+        "trace_sha256": "1dc6d80d60cc607edf280d11ee916d8869be1af5efdd6ba42fd29c04df222678",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.10606601717798213,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 9.153126399041867e-07,
+          "energy_balance_residual_kwh": 4.5765631995209333e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      },
+      {
+        "demand_quantile": "P50",
+        "date": "2021-05-29",
+        "target_quantile_daily_ev_kwh": 193.26999999999998,
+        "observed_daily_ev_kwh": 193.41,
+        "replicate": {
+          "kind": "date",
+          "id": "2021-05-29"
+        },
+        "initial_soh": 0.7,
+        "initial_soc": 0.5,
+        "capacity_feedback_enabled": false,
+        "degradation_cost_feedback_enabled": false,
+        "case_id": "P50_2021-05-29_soh0.7_cap0_cost0",
+        "status": "diagnostic_failed_gate",
+        "complete_steps": 48,
+        "source_path": "D:\\YWHC\\power_plant_dispatching\\parper\\experiment_runs\\soh_date_matrix_v4_continued_to_0800_20261114\\cases\\P50_2021-05-29_soh0.7_cap0_cost0.json",
+        "source_sha256": "ef5117fab3e043a623aa0d2f8e8b6c35771389cff3a10d5ddc879ae4ee9fc448",
+        "gates": {
+          "energy_identity": false,
+          "step_power_balance": true,
+          "soc_transition": true,
+          "terminal_reserve": true,
+          "complete_coordinate_no_improvement": true
+        },
+        "error": null,
+        "metrics": {
+          "served_kwh": 193.41000000000005,
+          "shed_kwh": 0.0,
+          "curtailment_kwh": 588.8013299969375,
+          "battery_loss_kwh": 93.11496896588505,
+          "network_loss_kwh": 16.545614330902012,
+          "non_ev_served_kwh": 1440.0,
+          "non_ev_unserved_kwh": 0.0,
+          "revenue_yuan": 483.52500000000003,
+          "requested_kwh": 193.41000000000005,
+          "service_rate": 1.0,
+          "renewable_input_kwh": 2464.7789552510485,
+          "stored_energy_change_kwh": 132.9070405037093,
+          "energy_identity_residual_kwh": 1.4536147432409052e-06,
+          "throughput_kwh": 1820.3435493215966,
+          "curtailment_plus_loss_kwh": 698.4619132937246,
+          "aging_cost_yuan": 425.6524,
+          "soc_end": 0.5949336003597924,
+          "soh_end_before_replacement": 0.6999361521391867,
+          "soh_end_after_boundary_transition": 1.0,
+          "replacement_cost_yuan": 1900000.0,
+          "reserve_boundary_steps": 0,
+          "capacity_boundary_steps": 2,
+          "nonconverged_steps": 0,
+          "runtime_s": 976.9492101000214
+        },
+        "trace_sha256": "1dc6d80d60cc607edf280d11ee916d8869be1af5efdd6ba42fd29c04df222678",
+        "initial_marginal_degradation_cost_yuan_per_kwh": 0.10606601717798213,
+        "nonconverged_steps": 0,
+        "physical_residual_max_all_attempted_steps": {
+          "power_balance_residual_kw": 9.153126399041867e-07,
+          "energy_balance_residual_kwh": 4.5765631995209333e-07,
+          "soc_transition_residual_fraction": 0.0
+        }
+      }
+    ],
+    "source_hash_audit": true,
+    "protocol_audit_problems": [],
+    "cost_feedback_effect_estimable": false,
+    "continuous_lifetime_advantage_established": false,
+    "independent_date_resets": true,
+    "physical_soh_fixed_within_day": true
+  },
+  "continuous_three_day": {
+    "fixed_price_bess": {
+      "status": "continuous_diagnostic_failed_gate",
+      "completed_dates": 3,
+      "days": [
+        {
+          "date": "2021-05-01",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 482.5530240567696,
+            "shed_kwh": 20.166975943230376,
+            "curtailment_kwh": 695.0364466995577,
+            "battery_loss_kwh": 112.51274022334088,
+            "network_loss_kwh": 24.997088250570783,
+            "revenue_yuan": 723.8295360851545,
+            "non_ev_unserved_kwh": 18.363714789263952,
+            "non_ev_served_kwh": 1421.636285210736,
+            "requested_kwh": 502.7199999999999,
+            "service_rate": 0.9598842776431605,
+            "max_abs_step_energy_residual_kwh": 2.753226528984243e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3055.4733017784033,
+            "useful_delivery_kwh": 1904.1893092675057,
+            "stored_energy_change_kwh": 318.73771612313,
+            "energy_identity_residual_kwh": 1.2142983223384363e-06,
+            "throughput_kwh": 2203.613667335526,
+            "curtailment_plus_loss_kwh": 832.5462751734693,
+            "soc_start": 0.5,
+            "soc_end": 0.6770765089572944,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.9,
+            "soh_end_posthoc": 0.8999313417508688,
+            "aging_cost_yuan": 457.7217,
+            "revenue_less_aging_yuan": 266.1078360851545,
+            "runtime_s": 3.7643706999999997,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.09297377526575129,
+            "usable_capacity_start_kwh": 1800.0,
+            "usable_capacity_end_kwh": 1799.8626835017376,
+            "modeled_operating_value_yuan": -20253.311836841745,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-02",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 314.59042316258336,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1354.168910775138,
+            "battery_loss_kwh": 72.32829798663236,
+            "network_loss_kwh": 15.09385934563257,
+            "revenue_yuan": 471.88563474387547,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 314.59042316258336,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 4.383334584190379e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3289.725613786912,
+            "useful_delivery_kwh": 1754.5904231625834,
+            "stored_energy_change_kwh": 93.54412045348242,
+            "energy_identity_residual_kwh": 2.063443290012401e-06,
+            "throughput_kwh": 1413.7276638020696,
+            "curtailment_plus_loss_kwh": 1441.591068107403,
+            "soc_start": 0.6770765089572944,
+            "soc_end": 0.7290494296200457,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8999313417508688,
+            "soh_end_posthoc": 0.8998765541499618,
+            "aging_cost_yuan": 365.2507,
+            "revenue_less_aging_yuan": 106.63493474387548,
+            "runtime_s": 3.9767072999999993,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07988573838290206,
+            "usable_capacity_start_kwh": 1799.8626835017376,
+            "usable_capacity_end_kwh": 1799.7531082999237,
+            "modeled_operating_value_yuan": -164.19884741115214,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-03",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 359.8395768374164,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1564.2691614478335,
+            "battery_loss_kwh": 57.26205724257424,
+            "network_loss_kwh": 12.22194647367385,
+            "revenue_yuan": 539.7593652561246,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 359.8395768374164,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 2.6901573235704745e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3395.2970829755973,
+            "useful_delivery_kwh": 1799.8395768374164,
+            "stored_energy_change_kwh": -38.29566049797002,
+            "energy_identity_residual_kwh": 1.4720692576020156e-06,
+            "throughput_kwh": 1116.3623051564362,
+            "curtailment_plus_loss_kwh": 1633.7531651640816,
+            "soc_start": 0.7290494296200457,
+            "soc_end": 0.707771144103348,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8998765541499618,
+            "soh_end_posthoc": 0.8998262918856126,
+            "aging_cost_yuan": 335.0818,
+            "revenue_less_aging_yuan": 204.67756525612464,
+            "runtime_s": 3.806615800000001,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07114836068741746,
+            "usable_capacity_start_kwh": 1799.7531082999237,
+            "usable_capacity_end_kwh": 1799.6525837712252,
+            "modeled_operating_value_yuan": -108.17626703344212,
+            "replacement_cost_yuan": 0.0
+          }
+        }
+      ]
+    },
+    "dynamic_fixed_cost": {
+      "status": "continuous_diagnostic_failed_gate",
+      "completed_dates": 3,
+      "days": [
+        {
+          "date": "2021-05-01",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 482.5530240567696,
+            "shed_kwh": 20.166975943230376,
+            "curtailment_kwh": 695.0364466995577,
+            "battery_loss_kwh": 112.51274022334088,
+            "network_loss_kwh": 24.997088250570783,
+            "revenue_yuan": 1194.3147311363173,
+            "non_ev_unserved_kwh": 18.363714789263952,
+            "non_ev_served_kwh": 1421.636285210736,
+            "requested_kwh": 502.7199999999999,
+            "service_rate": 0.9598842776431605,
+            "max_abs_step_energy_residual_kwh": 2.753226528984243e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3055.4733017784033,
+            "useful_delivery_kwh": 1904.1893092675057,
+            "stored_energy_change_kwh": 318.73771612313,
+            "energy_identity_residual_kwh": 1.2142983223384363e-06,
+            "throughput_kwh": 2203.613667335526,
+            "curtailment_plus_loss_kwh": 832.5462751734693,
+            "soc_start": 0.5,
+            "soc_end": 0.6770765089572944,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.9,
+            "soh_end_posthoc": 0.8999313417508688,
+            "aging_cost_yuan": 457.7217,
+            "revenue_less_aging_yuan": 736.5930311363172,
+            "runtime_s": 996.8765742,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.09297377526575129,
+            "usable_capacity_start_kwh": 1800.0,
+            "usable_capacity_end_kwh": 1799.8626835017376,
+            "modeled_operating_value_yuan": -19782.826641790583,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-02",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 314.59042316258336,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1354.1689107751322,
+            "battery_loss_kwh": 72.32829798663265,
+            "network_loss_kwh": 15.093859345632609,
+            "revenue_yuan": 786.4760579064591,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 314.59042316258336,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 4.383334939461747e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3289.725613786912,
+            "useful_delivery_kwh": 1754.5904231625834,
+            "stored_energy_change_kwh": 93.54412045348802,
+            "energy_identity_residual_kwh": 2.0634432758015464e-06,
+            "throughput_kwh": 1413.7276638020753,
+            "curtailment_plus_loss_kwh": 1441.5910681073974,
+            "soc_start": 0.6770765089572944,
+            "soc_end": 0.7290494296200488,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8999313417508688,
+            "soh_end_posthoc": 0.8998765541499618,
+            "aging_cost_yuan": 365.2507,
+            "revenue_less_aging_yuan": 421.2253579064591,
+            "runtime_s": 1108.3371447000002,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07988573838290239,
+            "usable_capacity_start_kwh": 1799.8626835017376,
+            "usable_capacity_end_kwh": 1799.7531082999237,
+            "modeled_operating_value_yuan": 150.3915757514327,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-03",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 359.8395768374164,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1564.2691614478395,
+            "battery_loss_kwh": 57.262057242573945,
+            "network_loss_kwh": 12.221946473673764,
+            "revenue_yuan": 899.5989420935413,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 359.8395768374164,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 2.6901573235704745e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3395.2970829755973,
+            "useful_delivery_kwh": 1799.8395768374164,
+            "stored_energy_change_kwh": -38.29566049797562,
+            "energy_identity_residual_kwh": 1.4720693144454344e-06,
+            "throughput_kwh": 1116.3623051564302,
+            "curtailment_plus_loss_kwh": 1633.7531651640872,
+            "soc_start": 0.7290494296200488,
+            "soc_end": 0.707771144103348,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8998765541499618,
+            "soh_end_posthoc": 0.8998262918856126,
+            "aging_cost_yuan": 335.0818,
+            "revenue_less_aging_yuan": 564.5171420935412,
+            "runtime_s": 1030.9895871000003,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07114836068741746,
+            "usable_capacity_start_kwh": 1799.7531082999237,
+            "usable_capacity_end_kwh": 1799.6525837712252,
+            "modeled_operating_value_yuan": 251.66330980397333,
+            "replacement_cost_yuan": 0.0
+          }
+        }
+      ]
+    },
+    "soh_aware": {
+      "status": "continuous_diagnostic_failed_gate",
+      "completed_dates": 3,
+      "days": [
+        {
+          "date": "2021-05-01",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 482.5530240567696,
+            "shed_kwh": 20.166975943230376,
+            "curtailment_kwh": 695.0364466995577,
+            "battery_loss_kwh": 112.51274022334088,
+            "network_loss_kwh": 24.997088250570783,
+            "revenue_yuan": 1194.3147311363173,
+            "non_ev_unserved_kwh": 18.363714789263952,
+            "non_ev_served_kwh": 1421.636285210736,
+            "requested_kwh": 502.7199999999999,
+            "service_rate": 0.9598842776431605,
+            "max_abs_step_energy_residual_kwh": 2.753226528984243e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08249579113843053,
+            "renewable_input_kwh": 3055.4733017784033,
+            "useful_delivery_kwh": 1904.1893092675057,
+            "stored_energy_change_kwh": 318.73771612313,
+            "energy_identity_residual_kwh": 1.2142983223384363e-06,
+            "throughput_kwh": 2203.613667335526,
+            "curtailment_plus_loss_kwh": 832.5462751734693,
+            "soc_start": 0.5,
+            "soc_end": 0.6770765089572944,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.9,
+            "soh_end_posthoc": 0.8999313417508688,
+            "aging_cost_yuan": 457.7217,
+            "revenue_less_aging_yuan": 736.5930311363172,
+            "runtime_s": 999.4125775,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.09297377526575129,
+            "usable_capacity_start_kwh": 1800.0,
+            "usable_capacity_end_kwh": 1799.8626835017376,
+            "modeled_operating_value_yuan": -19782.826641790583,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-02",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 314.59042316258336,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1354.1689107751292,
+            "battery_loss_kwh": 72.3282979866328,
+            "network_loss_kwh": 15.093859345632648,
+            "revenue_yuan": 786.4760579064591,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 314.59042316258336,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 4.3833345131361057e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08250388259068807,
+            "renewable_input_kwh": 3289.725613786912,
+            "useful_delivery_kwh": 1754.5904231625834,
+            "stored_energy_change_kwh": 93.5441204534908,
+            "energy_identity_residual_kwh": 2.063443247379837e-06,
+            "throughput_kwh": 1413.7276638020783,
+            "curtailment_plus_loss_kwh": 1441.5910681073947,
+            "soc_start": 0.6770765089572944,
+            "soc_end": 0.7290494296200504,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8999313417508688,
+            "soh_end_posthoc": 0.8998765541499618,
+            "aging_cost_yuan": 365.2507,
+            "revenue_less_aging_yuan": 421.2253579064591,
+            "runtime_s": 1111.7202252000002,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07988573838290257,
+            "usable_capacity_start_kwh": 1799.8626835017376,
+            "usable_capacity_end_kwh": 1799.7531082999237,
+            "modeled_operating_value_yuan": 150.39157575143327,
+            "replacement_cost_yuan": 0.0
+          }
+        },
+        {
+          "date": "2021-05-03",
+          "status": "diagnostic_failed_gate",
+          "summary": {
+            "served_kwh": 359.8395768374164,
+            "shed_kwh": 0.0,
+            "curtailment_kwh": 1564.2691614478426,
+            "battery_loss_kwh": 57.262057242573796,
+            "network_loss_kwh": 12.221946473673718,
+            "revenue_yuan": 899.5989420935413,
+            "non_ev_unserved_kwh": 0.0,
+            "non_ev_served_kwh": 1440.0,
+            "requested_kwh": 359.8395768374164,
+            "service_rate": 1.0,
+            "max_abs_step_energy_residual_kwh": 2.6901573235704745e-07,
+            "initial_marginal_degradation_cost_yuan_per_kwh": 0.08251033937137577,
+            "renewable_input_kwh": 3395.2970829755973,
+            "useful_delivery_kwh": 1799.8395768374164,
+            "stored_energy_change_kwh": -38.29566049797841,
+            "energy_identity_residual_kwh": 1.4720691225988958e-06,
+            "throughput_kwh": 1116.3623051564273,
+            "curtailment_plus_loss_kwh": 1633.7531651640902,
+            "soc_start": 0.7290494296200504,
+            "soc_end": 0.707771144103348,
+            "terminal_soc_min": 0.2,
+            "terminal_soc_feasible": true,
+            "soh_start": 0.8998765541499618,
+            "soh_end_posthoc": 0.8998262918856126,
+            "aging_cost_yuan": 335.0818,
+            "revenue_less_aging_yuan": 564.5171420935412,
+            "runtime_s": 1045.2482884,
+            "nonconverged_steps": 0,
+            "capacity_revaluation_loss_kwh": 0.07114836068741746,
+            "usable_capacity_start_kwh": 1799.7531082999237,
+            "usable_capacity_end_kwh": 1799.6525837712252,
+            "modeled_operating_value_yuan": 251.66330980397265,
+            "replacement_cost_yuan": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "claim_limit": "No SOH-aware policy advantage or full four-arm multi-day effect is established by these diagnostics."
+}

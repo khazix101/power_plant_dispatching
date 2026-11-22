@@ -13,6 +13,12 @@ class DCBranch:
     resistance_ohm: float
     current_limit_a: float = 0.0
 
+    @property
+    def thermal_rating_valid(self) -> bool:
+        """Whether this branch has a usable, finite ampacity rating."""
+        return bool(np.isfinite(self.current_limit_a)
+                    and self.current_limit_a > 0.0)
+
 
 @dataclass
 class DCNetworkConfig:
@@ -23,7 +29,7 @@ class DCNetworkConfig:
     voltage_min_pu: float = 0.95
     voltage_max_pu: float = 1.05
     ev_posts: int = 8
-    ev_post_kw: float = 60.0
+    ev_post_kw: float = 120.0
     branches: List[DCBranch] = field(default_factory=lambda: [
         DCBranch("Storage_Bus", "PV_Bus", 0.005),
         DCBranch("Storage_Bus", "Wind_Bus", 0.005),
@@ -99,11 +105,17 @@ class DCMicrogridPowerFlow:
                 "to_bus": branch.to_bus,
                 "current_a": current_a,
                 "loss_kw": loss_kw,
-                "rating_a": branch.current_limit_a or None,
-                "thermal_verified": branch.current_limit_a > 0,
+                "rating_a": (float(branch.current_limit_a)
+                             if branch.thermal_rating_valid else None),
+                "thermal_verified": branch.thermal_rating_valid,
                 "loading_pu": current_a / branch.current_limit_a
-                if branch.current_limit_a > 0 else None,
+                if branch.thermal_rating_valid else None,
             })
+        thermal_limits_verified = all(x["thermal_verified"] for x in branches)
+        max_loading_pu = (
+            max((x["loading_pu"] for x in branches), default=None)
+            if thermal_limits_verified else None
+        )
         return {
             "voltage_pu": {bus: float(voltage[i]) for bus, i in self._index.items()},
             "vmin_pu": float(voltage.min()),
@@ -112,8 +124,20 @@ class DCMicrogridPowerFlow:
                 voltage.min() >= self.config.voltage_min_pu
                 and voltage.max() <= self.config.voltage_max_pu
             ),
+            "voltage_margin_low_pu": float(
+                voltage.min() - self.config.voltage_min_pu
+            ),
+            "voltage_margin_high_pu": float(
+                self.config.voltage_max_pu - voltage.max()
+            ),
             "branches": branches,
-            "thermal_limits_verified": all(x["thermal_verified"] for x in branches),
+            "thermal_limits_verified": thermal_limits_verified,
+            "max_loading_pu": (float(max_loading_pu)
+                                if max_loading_pu is not None else None),
+            "thermal_feasible": (
+                all(x["loading_pu"] <= 1.0 + 1e-12 for x in branches)
+                if thermal_limits_verified else None
+            ),
             "losses_kw": float(losses_kw),
         }
 
@@ -232,7 +256,57 @@ def balance_dc_step(power_flow, soc, pv_kw, wind_kw, ev_request_kw,
     })
     required = ev_served + non_ev_kw + flow["losses_kw"] - pv_used - wind_used
     residual = required - p_bess
-    unserved_rigid = max(0.0, residual)
+    # The final residual is a physical shortage, not delivered load. Reduce
+    # rigid demand and re-solve the DC network because losses depend on the
+    # actually served load. Keep EV and non-EV shortages separate.
+    non_ev_served = max(0.0, float(non_ev_kw))
+    ev_unserved_rigid = 0.0
+    non_ev_unserved = 0.0
+    if residual > 1e-6:
+        for _ in range(8):
+            if residual <= 1e-6:
+                break
+            # Preserve the historical priority: flexible EV was shed first;
+            # an unmet committed EV request is accounted before non-EV load.
+            ev_cut = min(must_serve - ev_unserved_rigid, residual)
+            if ev_cut > 0:
+                ev_served -= ev_cut
+                ev_unserved_rigid += ev_cut
+            remaining = max(0.0, residual - max(0.0, ev_cut))
+            non_ev_cut = min(non_ev_served, remaining)
+            non_ev_served -= non_ev_cut
+            non_ev_unserved += non_ev_cut
+            flow = power_flow.solve({
+                "PV_Bus": pv_used, "Wind_Bus": wind_used,
+                "Load_Bus": -(ev_served + non_ev_served),
+            })
+            required = ev_served + non_ev_served + flow["losses_kw"] - pv_used - wind_used
+            residual = required - p_bess
+            if ev_cut <= 1e-9 and non_ev_cut <= 1e-9:
+                break
+    # Lower served load also lowers resistive losses. Reconcile the small
+    # resulting surplus against BESS power or curtailment before metering.
+    if residual < -1e-6:
+        new_p = soc.limit_power(p_bess + residual, dt_hours)
+        p_bess = new_p
+        for _ in range(8):
+            flow = power_flow.solve({
+                "PV_Bus": pv_used, "Wind_Bus": wind_used,
+                "Load_Bus": -(ev_served + non_ev_served),
+            })
+            residual = ev_served + non_ev_served + flow["losses_kw"] - pv_used - wind_used - p_bess
+            if abs(residual) <= 1e-6:
+                break
+            if residual < 0:
+                cut = min(pv_used, -residual)
+                pv_used -= cut
+                pv_curtail += cut
+                cut = min(wind_used, max(0.0, -residual - cut))
+                wind_used -= cut
+                wind_curtail += cut
+            else:
+                p_bess = soc.limit_power(p_bess + residual, dt_hours)
+    unserved_rigid = ev_unserved_rigid + non_ev_unserved
     soc.advance(p_bess, dt_hours)
     return {
         "p_bess_kw": p_bess,
@@ -241,6 +315,9 @@ def balance_dc_step(power_flow, soc, pv_kw, wind_kw, ev_request_kw,
         "ev_must_serve_kw": must_serve,
         "ev_served_kw": ev_served,
         "ev_shed_kw": ev_shed,
+        "ev_unserved_rigid_kw": ev_unserved_rigid,
+        "non_ev_served_kw": non_ev_served,
+        "non_ev_unserved_kw": non_ev_unserved,
         "ev_limit_kw": float(ev_service_limit_kw),
         "pv_used_kw": pv_used,
         "wind_used_kw": wind_used,

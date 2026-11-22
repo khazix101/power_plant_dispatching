@@ -19,7 +19,7 @@ from src.battery.asset_eval import (
 
 def evaluate_soh(soc_traj, power_traj, c_new=C_NEW_DEFAULT,
                  gamma=GAMMA_DEFAULT, alpha=ALPHA_DEFAULT,
-                 use_continuous=True):
+                 use_continuous=True, interval_hours=1.0):
     """评估一条 SOC/功率轨迹的 SOH 衰减与经济成本。
 
     Args:
@@ -37,9 +37,12 @@ def evaluate_soh(soc_traj, power_traj, c_new=C_NEW_DEFAULT,
     soc_pct = [max(0.0, min(100.0, s * 100.0)) for s in soc_traj]
     soc_avg = sum(soc_pct) / max(len(soc_pct), 1)
     k_cal = k_cal_continuous(soc_avg) if use_continuous else k_cal_piecewise(soc_avg)
-    delta_cal = k_cal / 365.0
+    interval_hours = float(interval_hours)
+    if interval_hours <= 0:
+        raise ValueError("interval_hours 必须为正数")
+    delta_cal = k_cal / 365.0 * (len(power_traj) * interval_hours / 24.0)
 
-    throughput = sum(abs(p) for p in power_traj)
+    throughput = sum(abs(p) * interval_hours for p in power_traj)
     dod = max(0.01, min(1.0, (max(soc_pct) - min(soc_pct)) / 100.0))
     delta_cyc = gamma * throughput * (dod ** (alpha - 1))
 

@@ -31,6 +31,8 @@ def solve_follower_response(case: GameCase, prices, prefer=None):
     """
     T = case.T
     assert len(prices) == T, "电价向量长度须等于 T"
+    if case.I == 0:
+        return {}
 
     m = pyo.ConcreteModel("follower")
     m.T = pyo.RangeSet(0, T - 1)
@@ -38,20 +40,38 @@ def solve_follower_response(case: GameCase, prices, prefer=None):
 
     def _cap(i, t):
         u = case.users[i]
-        return u.max_power_kw if t in u.available else 0.0
+        return u.max_power_kw * case.interval_hours[t] if t in u.available else 0.0
 
     m.e = pyo.Var(
         m.I, m.T, domain=pyo.NonNegativeReals,
         bounds=lambda m, i, t: (0.0, _cap(i, t)),
     )
+    def _effective_energy_cap(i):
+        user = case.users[i]
+        if case.ev_demand_elasticity <= 0 or not user.available:
+            return user.energy_max_kwh
+        mean_price = sum(float(prices[t]) for t in user.available) / len(user.available)
+        return user.energy_max_kwh * (
+            max(mean_price, 1e-9) / case.demand_forecast_price
+        ) ** (-case.ev_demand_elasticity)
+
     m.energy_cap = pyo.Constraint(
         m.I,
-        rule=lambda m, i: sum(m.e[i, t] for t in m.T) <= case.users[i].energy_max_kwh,
+        rule=lambda m, i: sum(m.e[i, t] for t in m.T)
+        <= _effective_energy_cap(i),
     )
     m.energy_min = pyo.Constraint(
         m.I,
-        rule=lambda m, i: sum(m.e[i, t] for t in m.T) >= case.users[i].energy_min_kwh,
+        rule=lambda m, i: sum(m.e[i, t] for t in m.T)
+        >= min(case.users[i].energy_min_kwh, _effective_energy_cap(i)),
     )
+    if case.ev_service_limit_kw is not None:
+        m.station_limit = pyo.Constraint(
+            m.T,
+            rule=lambda m, t: sum(m.e[i, t] for i in m.I)
+            <= max(0.0, case.ev_service_limit_kw - case.ev_rigid_load_kw[t])
+            * case.interval_hours[t],
+        )
     # 用户效用 = Σ (v_i − p_t) e_{i,t}
     m.obj = pyo.Objective(
         expr=sum((case.users[i].value_per_kwh - prices[t]) * m.e[i, t]

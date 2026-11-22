@@ -14,6 +14,12 @@ from src.game.equilibrium import solve_equilibrium
 from src.game.forecast import ForecastBundle
 from src.game.bri import solve_equilibrium_bri
 from src.game.safety import project_action
+from src.game.follower import solve_follower_response
+from src.game.baseline import solve_leader_fixed_profile
+from src.game.dc_microgrid import DCMicrogridPowerFlow, DCSOCState, balance_dc_step
+from src.battery.state import BatteryState
+from src.battery.degradation import marginal_cycle_cost_per_kwh
+from src.game.state_transition import transition_battery_state
 
 
 @dataclass
@@ -28,6 +34,8 @@ class RollingDecision:
     feasible: bool
     method: str
     horizon_result: Dict
+    soh_current: float = 1.0
+    usable_capacity_kwh: float = 0.0
 
 
 class RollingSFSEController:
@@ -48,9 +56,10 @@ class RollingSFSEController:
         flexibility: float = 0.2,
         method: str = "bri",
         max_sweeps: int = 3,
+        battery_state: Optional[BatteryState] = None,
     ):
         self.battery = battery or BatteryParams()
-        self.price_levels = price_levels or [0.6, 0.9, 1.2, 1.5, 1.8]
+        self.price_levels = price_levels or [1.5, 1.7, 1.9, 2.1, 2.3, 2.5]
         self.response_value_per_kwh = response_value_per_kwh
         self.response_power_factor = response_power_factor
         self.reserve_penalty = reserve_penalty
@@ -59,6 +68,7 @@ class RollingSFSEController:
         self.flexibility = flexibility
         self.method = method
         self.max_sweeps = max_sweeps
+        self.battery_state = battery_state
 
     def _build_users(self, bundle: ForecastBundle) -> List[EVUser]:
         """把基础预测需求转为可移峰的用户群。"""
@@ -84,8 +94,15 @@ class RollingSFSEController:
         return users
 
     def _build_case(self, bundle: ForecastBundle) -> GameCase:
+        dynamic_capacity = None
+        if self.battery_state is not None:
+            dynamic_capacity = self.battery_state.usable_capacity_kwh
+            dynamic_deg_cost = marginal_cycle_cost_per_kwh(self.battery_state)
+        else:
+            dynamic_capacity = self.battery.capacity_kwh * bundle.soh_current
+            dynamic_deg_cost = self.battery.deg_cost_per_kwh
         battery = BatteryParams(
-            capacity_kwh=self.battery.capacity_kwh * bundle.soh_current,
+            capacity_kwh=dynamic_capacity,
             power_kw=self.battery.power_kw,
             charge_eff=self.battery.charge_eff,
             discharge_eff=self.battery.discharge_eff,
@@ -94,9 +111,9 @@ class RollingSFSEController:
             soc_max=self.battery.soc_max,
             soc_end_min=max(
                 self.battery.soc_end_min,
-                bundle.reserve_kwh / max(self.battery.capacity_kwh * bundle.soh_current, 1e-9),
+                bundle.reserve_kwh / max(dynamic_capacity, 1e-9),
             ),
-            deg_cost_per_kwh=self.battery.deg_cost_per_kwh,
+            deg_cost_per_kwh=dynamic_deg_cost,
         )
         return GameCase(
             T=bundle.horizon_hours,
@@ -111,6 +128,7 @@ class RollingSFSEController:
             price_levels=list(self.price_levels),
             penalty_shed=100.0,
             penalty_curt=0.2,
+            battery_state=self.battery_state,
         )
 
     def step(self, bundle: ForecastBundle) -> RollingDecision:
@@ -124,7 +142,7 @@ class RollingSFSEController:
         elif self.method == "bri":
             result = solve_equilibrium_bri(
                 case,
-                init_prices=[1.2] * case.T,
+                init_prices=[min(self.price_levels)] * case.T,
                 max_sweeps=self.max_sweeps,
             )
         else:
@@ -136,11 +154,64 @@ class RollingSFSEController:
             result["p_dis"],
             result["response"],
         )
-        flexible_current_ev = sum(
+        return self._decision_from_result(bundle, case, result, safe,
+                                          method=self.method)
+
+    def step_with_prices(self, bundle: ForecastBundle, price_plan) -> RollingDecision:
+        """Execute a legal horizon price plan through the shared safe pipeline.
+
+        The plan has one discrete configured price per forecast interval. Only
+        the first interval is returned for execution, matching ``step``.
+        """
+        case = self._build_case(bundle)
+        if not case.users:
+            raise ValueError("预测窗口内没有基础充电需求，无法构造用户跟随者")
+        prices = self._validate_price_plan(price_plan, case.T)
+        response = solve_follower_response(case, prices)
+        ev_profile = [
+            sum(response[user.name][t] for user in case.users)
+            for t in range(case.T)
+        ]
+        revenue = sum(prices[t] * ev_profile[t] for t in range(case.T))
+        schedule = solve_leader_fixed_profile(case, ev_profile, revenue,
+                                               prices=prices)
+        result = {
+            **schedule,
+            "prices": prices,
+            "response": response,
+            "method": "policy_price_plan",
+        }
+        safe = project_action(
+            case,
+            result["p_ch"],
+            result["p_dis"],
+            result["response"],
+        )
+        return self._decision_from_result(bundle, case, result, safe,
+                                          method="policy_price_plan")
+
+    def _validate_price_plan(self, price_plan, horizon):
+        try:
+            prices = [float(price) for price in price_plan]
+        except (TypeError, ValueError) as exc:
+            raise ValueError("price_plan 必须是价格档位序列") from exc
+        if len(prices) != horizon:
+            raise ValueError(f"price_plan 长度必须等于预测时域 T={horizon}")
+        levels = [float(level) for level in self.price_levels]
+        if any(not any(abs(price - level) <= 1e-9 for level in levels)
+               for price in prices):
+            raise ValueError("price_plan 中的价格必须属于配置的 price_levels")
+        return prices
+
+    def _decision_from_result(self, bundle, case, result, safe, method):
+        flexible_current_ev_kwh = sum(
             safe["ev"][user.name][0]
             for user in case.users
         )
-        current_ev = bundle.current_ev_load_kw + flexible_current_ev
+        flexible_current_ev_kw = (
+            flexible_current_ev_kwh / case.interval_hours[0]
+        )
+        current_ev = bundle.current_ev_load_kw + flexible_current_ev_kw
         current_total = bundle.non_ev_load_forecast_kw[0] + current_ev
         current_storage = safe["p_dis"][0] - safe["p_ch"][0]
         price = result["prices"][0]
@@ -151,6 +222,39 @@ class RollingSFSEController:
             ev_load_kw=current_ev,
             total_load_kw=current_total,
             feasible=safe["feasible"],
-            method=self.method,
+            method=method,
             horizon_result={**result, "safe": safe},
+            soh_current=(self.battery_state.soh_system
+                         if self.battery_state is not None else bundle.soh_current),
+            usable_capacity_kwh=case.effective_capacity_kwh,
         )
+
+    def advance_battery_day(self, storage_power_kw, soc_pct):
+        """Apply a completed daily trajectory to the attached SOH state."""
+        if self.battery_state is None:
+            raise RuntimeError("advance_battery_day 需要在控制器中传入 battery_state")
+        self.battery_state, result = transition_battery_state(
+            self.battery_state, storage_power_kw, soc_pct)
+        return result
+
+    def step_dc(self, bundle: ForecastBundle, power_flow=None, soc_state=None,
+                dt_hours: float = 1.0):
+        """Execute the rolling game decision on the DC network.
+
+        This keeps the game solver and physical DC execution as separate
+        stages while exposing one connected call for experiments.
+        """
+        decision = self.step(bundle)
+        network = power_flow or DCMicrogridPowerFlow()
+        soc = soc_state or DCSOCState(soc=bundle.soc_current)
+        flow = balance_dc_step(
+            network,
+            soc,
+            pv_kw=bundle.pv_forecast_kw[0],
+            wind_kw=bundle.wind_forecast_kw[0],
+            ev_request_kw=decision.ev_load_kw,
+            non_ev_kw=bundle.non_ev_load_forecast_kw[0],
+            p_schedule_kw=decision.storage_kw,
+            dt_hours=dt_hours,
+        )
+        return decision, flow

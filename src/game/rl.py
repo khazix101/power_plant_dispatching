@@ -60,6 +60,94 @@ class PolicyNet(nn.Module if _HAS_TORCH else object):
         return mean.detach().numpy()
 
 
+class DiscretePolicyNet(nn.Module if _HAS_TORCH else object):
+    """Factorized categorical policy over legal price levels at each slot.
+
+    The action schema is MultiDiscrete([K] * T): each component is an integer
+    index into ``price_levels``. Returned prices are gathered from that same
+    table, so sampled actions are always legal and their log-probability is
+    evaluated for the action actually sent to the environment.
+    """
+
+    def __init__(self, n_features, T, price_levels, hidden=128, seed=0):
+        if not _HAS_TORCH:
+            raise RuntimeError("未安装 PyTorch, 无法使用策略网络")
+        super().__init__()
+        # Preserve the configured Python price values exactly when converting
+        # selected levels back to NumPy/Python for environment execution.
+        levels = torch.as_tensor(price_levels, dtype=torch.float64)
+        if levels.ndim != 1 or levels.numel() == 0:
+            raise ValueError("price_levels 必须是非空一维序列")
+        if not torch.isfinite(levels).all():
+            raise ValueError("price_levels 必须为有限值")
+        if T <= 0:
+            raise ValueError("T 必须为正数")
+        torch.manual_seed(seed)
+        self.T = int(T)
+        self.K = int(levels.numel())
+        self.register_buffer("price_levels", levels)
+        self.body = nn.Sequential(
+            nn.Linear(n_features, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden), nn.ReLU(),
+        )
+        self.logits_head = nn.Linear(hidden, self.T * self.K)
+
+    def forward(self, feat):
+        logits = self.logits_head(self.body(feat))
+        return logits.reshape(*logits.shape[:-1], self.T, self.K)
+
+    def prices_from_indices(self, indices):
+        indices = torch.as_tensor(indices, device=self.price_levels.device)
+        if indices.ndim == 0 or indices.shape[-1] != self.T:
+            raise ValueError(f"动作最后一维必须为 T={self.T}")
+        if indices.dtype not in (torch.int8, torch.int16, torch.int32, torch.int64,
+                                 torch.uint8):
+            raise TypeError("离散价格动作必须使用整数档位索引")
+        if torch.any(indices < 0) or torch.any(indices >= self.K):
+            raise ValueError(f"动作档位索引必须在 [0, {self.K}) 内")
+        return self.price_levels[indices.long()]
+
+    def evaluate_actions(self, feat, indices):
+        """Return joint log-probability and entropy for legal index actions."""
+        logits = self.forward(feat)
+        indices = torch.as_tensor(indices, device=logits.device)
+        if indices.ndim == 0 or indices.shape[-1] != self.T:
+            raise ValueError(f"动作最后一维必须为 T={self.T}")
+        if indices.dtype not in (torch.int8, torch.int16, torch.int32, torch.int64,
+                                 torch.uint8):
+            raise TypeError("离散价格动作必须使用整数档位索引")
+        if torch.any(indices < 0) or torch.any(indices >= self.K):
+            raise ValueError(f"动作档位索引必须在 [0, {self.K}) 内")
+        dist = torch.distributions.Categorical(logits=logits)
+        log_prob = dist.log_prob(indices.long()).sum(dim=-1)
+        entropy = dist.entropy().sum(dim=-1)
+        return log_prob, entropy
+
+    def log_prob(self, feat, indices):
+        """Return the joint log-probability of an executed index action."""
+        return self.evaluate_actions(feat, indices)[0]
+
+    def sample_action(self, feat, seed=None):
+        """Sample indices and return matching prices and joint log-probability."""
+        logits = self.forward(feat)
+        probs = torch.softmax(logits, dim=-1)
+        generator = None
+        if seed is not None:
+            generator = torch.Generator(device=logits.device)
+            generator.manual_seed(int(seed))
+        indices = torch.multinomial(
+            probs.reshape(-1, self.K), 1, replacement=True, generator=generator
+        ).reshape(*logits.shape[:-1])
+        log_prob, _ = self.evaluate_actions(feat, indices)
+        prices = self.prices_from_indices(indices)
+        return {"indices": indices, "prices": prices, "log_prob": log_prob}
+
+    def act_deterministic(self, feat):
+        """Return per-slot modal prices; all outputs belong to price_levels."""
+        indices = self.forward(feat).argmax(dim=-1)
+        return self.prices_from_indices(indices)
+
+
 class ValueNet(nn.Module if _HAS_TORCH else object):
     """状态价值网络, 作为策略梯度的基线 (actor-critic)。"""
 
