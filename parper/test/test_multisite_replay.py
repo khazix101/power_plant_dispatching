@@ -32,6 +32,13 @@ class MultiSiteReplayTests(unittest.TestCase):
         with self.assertRaisesRegex(ReplayContractError, "30-minute|same timestamp axis"):
             run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
 
+    def test_site_definition_provenance_is_required(self):
+        changed = copy.deepcopy(self.manifest)
+        changed["sites"][0].pop("source")
+        changed["input_sha256"] = input_sha256(changed)
+        with self.assertRaisesRegex(ReplayContractError, "site definition requires source"):
+            run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+
     def test_missing_data_is_rejected_or_explicitly_marked_without_imputation(self):
         changed = copy.deepcopy(self.manifest)
         signal = changed["series"][0]["intervals"][1]["signals"]["pv_forecast_kw"]

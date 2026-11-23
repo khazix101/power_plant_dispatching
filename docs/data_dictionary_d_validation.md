@@ -4,7 +4,7 @@
 
 The audit reads only the five tracked example files named in `data/`. It never enumerates or opens `Dataset/`, `output/`, `tmp/`, or experiment result directories. Current files describe one generic single-site scenario; none has a `site_id`, equipment record, or privacy classification. They are not evidence of multiple measured sites.
 
-The D replay consumes the serialized v1 wire shape in A's `src/multisite/contract.py` (`contract_version=1.0.0`, 30-minute intervals, explicit IANA timezone, site definitions, interval signals, and tie-line definitions). At this checkout A's contract source is uncommitted and its planned `docs/multi_site_contract.md` is absent. D therefore keeps the consumer at the JSON boundary and adds replay-only fields below; A remains the owner of the shared contract definition.
+The D replay consumes the serialized v1 wire shape in A's `src/multisite/contract.py` (`contract_version=1.0.0`, 30-minute intervals, explicit IANA timezone, source-tagged site definitions, interval signals, and tie-line definitions). D keeps the consumer at the JSON boundary and adds replay-only fields below; A remains the owner of the shared contract definition.
 
 ## Tracked `data/` files
 
@@ -25,6 +25,8 @@ The current snapshots contain 24 rows each for A–D, spanning `2024-01-01 00:00
 | `pv_forecast_kw`, `wind_forecast_kw` | kW | Forecast inputs to every method |
 | `load_forecast_kw`, `ev_forecast_kw` | kW | Non-EV/base and EV request forecast, kept distinct |
 | `price_yuan_per_kwh` | CNY/kWh | Reference/forecast price information |
+| `grid_buy_price_yuan_per_kwh`, `grid_sell_price_yuan_per_kwh` | CNY/kWh | Grid settlement buy/sell price forecasts |
+| `ev_delivery_price_yuan_per_kwh` | CNY/kWh | Forecast EV delivery tariff; action still selects from shared legal tiers |
 | `soc`, `soh` | fraction | Initial or measured state; execution evolves state per method |
 | `reserve_margin_kwh` | kWh | Reserve metadata |
 | optional `*_actual_kw` | kW | Measured outcome only; never substituted for forecast input |
@@ -34,7 +36,7 @@ Each signal carries `value`, `unit`, `source`, and `status` (`observed`, `foreca
 
 ## D replay-only manifest fields
 
-The replay wrapper adds `data_class` (`synthetic`, `forecast`, `measured`, or `mixed`), `seed`, `run_id`, `site_configs`, `price_levels_yuan_per_kwh`, `upstream_import_limit_kw`, optional `upstream_export_limit_kw` / `upstream_loss_fraction`, and `input_sha256`. Each `site_configs[site_id]` contains:
+The replay wrapper adds `data_class` (`synthetic`, `forecast`, `measured`, or `mixed`), `seed`, `run_id`, `site_configs`, `price_levels_yuan_per_kwh`, `upstream_import_limit_kw`, optional positive `upstream_export_limit_kw` (`null` means export is disabled), `upstream_loss_fraction`, and `input_sha256`. Each `site_configs[site_id]` contains:
 
 - `assets`: battery capacity/power (kWh/kW), SOC bounds/reserve (fraction), charge/discharge efficiencies (fraction), EV service limit (kW), degradation cost (CNY/kWh throughput), and SOH loss coefficient (fraction/kWh throughput).
 - `initial_state`: common start SOC and SOH for every method on that site.

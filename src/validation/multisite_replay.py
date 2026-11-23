@@ -27,17 +27,24 @@ SIGNAL_UNITS = {
     "wind_forecast_kw": "kW", "wind_actual_kw": "kW",
     "load_forecast_kw": "kW", "load_actual_kw": "kW",
     "ev_forecast_kw": "kW", "ev_actual_kw": "kW",
-    "price_yuan_per_kwh": "CNY/kWh", "soc": "fraction",
+    "price_yuan_per_kwh": "CNY/kWh",
+    "grid_buy_price_yuan_per_kwh": "CNY/kWh",
+    "grid_sell_price_yuan_per_kwh": "CNY/kWh",
+    "ev_delivery_price_yuan_per_kwh": "CNY/kWh",
+    "soc": "fraction",
     "soh": "fraction", "reserve_margin_kwh": "kWh",
     "grid_import_kw": "kW", "tie_flow_kw": "kW",
 }
 REQUIRED_SIGNALS = {
     "pv_forecast_kw", "wind_forecast_kw", "load_forecast_kw",
-    "ev_forecast_kw", "price_yuan_per_kwh", "soc", "soh",
-    "reserve_margin_kwh",
+    "ev_forecast_kw", "price_yuan_per_kwh", "grid_buy_price_yuan_per_kwh",
+    "grid_sell_price_yuan_per_kwh", "ev_delivery_price_yuan_per_kwh",
+    "soc", "soh", "reserve_margin_kwh",
 }
 FORECAST_SIGNALS = ("pv_forecast_kw", "wind_forecast_kw", "load_forecast_kw",
-                    "ev_forecast_kw", "price_yuan_per_kwh")
+                    "ev_forecast_kw", "price_yuan_per_kwh",
+                    "grid_buy_price_yuan_per_kwh", "grid_sell_price_yuan_per_kwh",
+                    "ev_delivery_price_yuan_per_kwh")
 _ALLOWED_SIGNAL_STATUS = {"observed", "forecast", "missing", "assumed", "stale", "invalid"}
 _SUCCESS_STATUSES = {"ok", "feasible", "optimal", "heuristic", "completed", "success", "solved",
                      "execution_interface_completed"}
@@ -128,8 +135,8 @@ def validate_replay_input(manifest: Mapping[str, Any], missing_policy: str = "re
         if _finite(manifest.get(name), name) <= 0:
             raise ReplayContractError(f"{name} must be positive")
     export_limit = manifest.get("upstream_export_limit_kw")
-    if export_limit is not None and _finite(export_limit, "upstream_export_limit_kw") < 0:
-        raise ReplayContractError("upstream_export_limit_kw cannot be negative")
+    if export_limit is not None and _finite(export_limit, "upstream_export_limit_kw") <= 0:
+        raise ReplayContractError("upstream_export_limit_kw must be positive when specified; use null to disallow export")
     loss_fraction = _finite(manifest.get("upstream_loss_fraction", 0.0), "upstream_loss_fraction")
     if not 0 <= loss_fraction < 1:
         raise ReplayContractError("upstream_loss_fraction must be in [0, 1)")
@@ -146,6 +153,9 @@ def validate_replay_input(manifest: Mapping[str, Any], missing_policy: str = "re
     site_ids = [site.get("site_id") for site in sites if isinstance(site, Mapping)]
     if len(site_ids) != len(sites) or any(not isinstance(value, str) or not value for value in site_ids):
         raise ReplayContractError("every site requires a non-empty site_id")
+    if any(not isinstance(site.get("source"), str) or not site["source"].strip()
+           for site in sites):
+        raise ReplayContractError("every site definition requires source provenance")
     if len(set(site_ids)) != len(site_ids):
         raise ReplayContractError("site_id values must be unique")
     if not isinstance(series, list) or {row.get("site_id") for row in series if isinstance(row, Mapping)} != set(site_ids):
@@ -958,7 +968,9 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
     rng = Random(seed)
     start = datetime(2024, 1, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
     site_ids = ["SYN-01", "SYN-02"]
-    sites = [{"site_id": site_id, "timezone": "Asia/Shanghai"} for site_id in site_ids]
+    sites = [{"site_id": site_id, "timezone": "Asia/Shanghai",
+              "source": f"synthetic-generator:seed={seed}"}
+             for site_id in site_ids]
     site_configs = {}
     for index, site_id in enumerate(site_ids):
         site_configs[site_id] = {
@@ -992,6 +1004,9 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
                 "load_forecast_kw": (base, "kW", "forecast"),
                 "ev_forecast_kw": (ev, "kW", "forecast"),
                 "price_yuan_per_kwh": (1.8, "CNY/kWh", "forecast"),
+                "grid_buy_price_yuan_per_kwh": (0.75, "CNY/kWh", "forecast"),
+                "grid_sell_price_yuan_per_kwh": (0.25, "CNY/kWh", "forecast"),
+                "ev_delivery_price_yuan_per_kwh": (1.8, "CNY/kWh", "forecast"),
                 "soc": (site_configs[site_id]["initial_state"]["soc"], "fraction", "assumed"),
                 "soh": (0.98, "fraction", "assumed"),
                 "reserve_margin_kwh": (8.0, "kWh", "assumed"),
@@ -1019,7 +1034,7 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
         "prediction_horizon_steps": step_count,
         "price_levels_yuan_per_kwh": [1.2, 1.5, 1.8, 2.1, 2.4],
         "upstream_import_limit_kw": 60.0,
-        "upstream_export_limit_kw": 0.0,
+        "upstream_export_limit_kw": None,
         "upstream_loss_fraction": 0.02,
         "sites": sites,
         "tie_lines": [],
