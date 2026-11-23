@@ -1,31 +1,24 @@
-# Agent A
+# Agent A：阶段 2 共用接口冻结
 
-## 工作区
+## 工作区与分支
 
 - 目录：`D:\YWHC\power_plant_dispatching\workspaces\A`
 - 分支：`team/a-platform`
-- 只能修改本工作区，不得修改集成目录或 B/C/D 工作区。
+- 只在本工作区修改和提交。不得改 B/C/D 工作区或实现他们的模块。
 
-## 任务
+## 本轮目标
 
-负责平台架构、问题定义、数据契约、API 契约和跨模块集成决策。
+阅读根目录 `docs/ABCD阶段2集成任务.md`，维护 A v1 契约，并冻结 B/C/D 实际联调所需的适配约定。
 
-1. 冻结站点数量与 ID、半小时调度步长、预测时域、站间交换含义、上级功率上限、价格档位、负荷优先级、SOC/SOH 边界、安全约束和成本口径。
-2. 定义统一数据 schema：时间戳及时区、站点参数、风光/负荷/EV 预测与实测、价格、SOC/SOH、备用裕度、联络线限额、单位、正负号、来源和缺失状态。
-3. 定义站点策略 API、集中式协调器 API、配置格式、结果账本、失败状态和版本字段；尽量兼容现有 `ForecastBundle`、滚动控制器、安全层和 `BatteryState`。
-4. 记录架构决策、未知参数、风险和依赖。不得编造线路额定值、价格响应参数或现场数据。
-5. 添加合法双站样例，以及单位、时区、缺失字段、重复时间戳、未知站点和非法限额的契约测试。
+1. 新增 `docs/multisite_integration_v1.md`，逐字段记录 SiteStrategy 输入、SiteAction 输出、Coordinator config、首时段 actions/tie-line flow metadata、正负号、单位、版本、状态和错误处理；要求与阶段 2 文档完全一致。
+2. 增加契约侧 conformance 测试/fixture，至少检查 SiteAction 时间戳/价格字段形状、协调器配置必需字段、metadata 首时段动作及有符号 tie-line flow 形状；保留 `MultiSiteInput` v1.0.0 wire schema，不做破坏性改动。
+3. 记录尚未确认的物理/业务输入，不填造真实参数。向主线程报告 B/C/D 实现中发现的契约冲突并提出最小兼容修正。
 
-## 技术与边界
+## 验收
 
-优先使用 Python dataclass、NumPy/Pandas 和现有接口。不要实现 B 的 Agent、C 的联合优化器或 D 的长时回放器；不要修改 `Dataset/`、`tmp/`、`output/`、`parper/experiment_runs/`。
+- `python -m unittest parper.test.test_multisite_contract -v` 及新增 conformance tests 全通过。
+- 文档样例能构造合法请求，也有非法 config/action/flow 样例。
+- `python -m compileall -q src scripts parper/test` 通过。
+- 提交只包含契约文档/测试，提交至 `team/a-platform`，不 force-push。
 
-## 验收与提交
-
-- 合法双站输入可加载并序列化/反序列化。
-- 关键单位、时区、正负号和版本字段有文档说明。
-- 非法输入产生稳定、可读的错误或结构化失败状态。
-- 运行相关契约测试并记录结果。
-- 只提交到 `team/a-platform`，使用清晰的 Conventional Commit 信息，不得 force-push。
-
-完成时报告改动文件、契约版本、冻结假设、测试命令与结果、风险和提交哈希。
+完成时给出契约版本、变更文件、测试结果、未决问题和提交哈希。

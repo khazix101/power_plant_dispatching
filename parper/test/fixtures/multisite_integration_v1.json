@@ -1,0 +1,129 @@
+{
+  "request": {
+    "contract_version": "1.0.0",
+    "run_id": "synthetic-two-site-stage2",
+    "input": {
+      "contract_version": "1.0.0",
+      "timezone": "Asia/Shanghai",
+      "interval_minutes": 30,
+      "prediction_horizon_steps": 2,
+      "upstream_import_limit_kw": null,
+      "upstream_export_limit_kw": null,
+      "sites": [
+        {"site_id": "site-1", "timezone": "Asia/Shanghai", "source": "synthetic-fixture"},
+        {"site_id": "site-2", "timezone": "Asia/Shanghai", "source": "synthetic-fixture"}
+      ],
+      "tie_lines": [
+        {"line_id": "link-1", "from_site": "site-1", "to_site": "site-2", "import_limit_kw": 4.0, "export_limit_kw": 5.0, "source": "synthetic-fixture", "loss_fraction": 0.05}
+      ],
+      "series": [
+        {
+          "site_id": "site-1",
+          "intervals": [
+            {"timestamp": "2026-01-01T00:00:00+08:00", "signals": {
+              "pv_forecast_kw": {"value": 1.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "wind_forecast_kw": {"value": 0.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "load_forecast_kw": {"value": 3.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "ev_forecast_kw": {"value": 1.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "price_yuan_per_kwh": {"value": 0.6, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_buy_price_yuan_per_kwh": {"value": 0.8, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_sell_price_yuan_per_kwh": {"value": 0.3, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "ev_delivery_price_yuan_per_kwh": {"value": 0.7, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "soc": {"value": 0.5, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "soh": {"value": 0.98, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "reserve_margin_kwh": {"value": 2.0, "unit": "kWh", "source": "synthetic-fixture", "status": "observed"}
+            }},
+            {"timestamp": "2026-01-01T00:30:00+08:00", "signals": {
+              "pv_forecast_kw": {"value": 1.2, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "wind_forecast_kw": {"value": 0.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "load_forecast_kw": {"value": 3.1, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "ev_forecast_kw": {"value": 1.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "price_yuan_per_kwh": {"value": 0.6, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_buy_price_yuan_per_kwh": {"value": 0.8, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_sell_price_yuan_per_kwh": {"value": 0.3, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "ev_delivery_price_yuan_per_kwh": {"value": 0.7, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "soc": {"value": 0.5, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "soh": {"value": 0.98, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "reserve_margin_kwh": {"value": 2.0, "unit": "kWh", "source": "synthetic-fixture", "status": "observed"}
+            }}
+          ]
+        },
+        {
+          "site_id": "site-2",
+          "intervals": [
+            {"timestamp": "2026-01-01T00:00:00+08:00", "signals": {
+              "pv_forecast_kw": {"value": 0.5, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "wind_forecast_kw": {"value": 0.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "load_forecast_kw": {"value": 2.5, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "ev_forecast_kw": {"value": 0.5, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "price_yuan_per_kwh": {"value": 0.6, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_buy_price_yuan_per_kwh": {"value": 0.8, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_sell_price_yuan_per_kwh": {"value": 0.3, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "ev_delivery_price_yuan_per_kwh": {"value": 0.7, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "soc": {"value": 0.55, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "soh": {"value": 0.97, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "reserve_margin_kwh": {"value": 1.5, "unit": "kWh", "source": "synthetic-fixture", "status": "observed"}
+            }},
+            {"timestamp": "2026-01-01T00:30:00+08:00", "signals": {
+              "pv_forecast_kw": {"value": 0.4, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "wind_forecast_kw": {"value": 0.0, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "load_forecast_kw": {"value": 2.8, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "ev_forecast_kw": {"value": 0.5, "unit": "kW", "source": "synthetic-fixture", "status": "forecast"},
+              "price_yuan_per_kwh": {"value": 0.6, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_buy_price_yuan_per_kwh": {"value": 0.8, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "grid_sell_price_yuan_per_kwh": {"value": 0.3, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "ev_delivery_price_yuan_per_kwh": {"value": 0.7, "unit": "CNY/kWh", "source": "synthetic-fixture", "status": "observed"},
+              "soc": {"value": 0.55, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "soh": {"value": 0.97, "unit": "fraction", "source": "synthetic-fixture", "status": "observed"},
+              "reserve_margin_kwh": {"value": 1.5, "unit": "kWh", "source": "synthetic-fixture", "status": "observed"}
+            }}
+          ]
+        }
+      ]
+    },
+    "config": {
+      "provenance": {"data_class": "synthetic", "source": "synthetic-two-site-stage2"},
+      "method": "centralized",
+      "price_levels": [0.4, 0.6, 0.8],
+      "service_gap": {"max_ev_service_fraction_gap": 0.5},
+      "time_limit_seconds": 10.0,
+      "sites": {
+        "site-1": {"soc_terminal": 0.5, "reserve_requirement_kwh": 1.0, "degradation_per_kwh": 0.01, "base_min_fraction": 0.2, "base_unserved_cost": 10.0, "ev_unserved_cost": 2.0},
+        "site-2": {"soc_terminal": 0.5, "reserve_requirement_kwh": 1.0, "degradation_per_kwh": 0.01, "base_min_fraction": 0.2, "base_unserved_cost": 10.0, "ev_unserved_cost": 2.0}
+      }
+    }
+  },
+  "strategy_call": {
+    "site_id": "site-1",
+    "forecast_window": [
+      {"timestamp": "2026-01-01T00:00:00+08:00", "pv_forecast_kw": 1.0, "wind_forecast_kw": 0.0, "load_forecast_kw": 3.0, "ev_forecast_kw": 1.0, "source_quality": {"source": "synthetic-fixture", "status": "forecast"}},
+      {"timestamp": "2026-01-01T00:30:00+08:00", "pv_forecast_kw": 1.2, "wind_forecast_kw": 0.0, "load_forecast_kw": 3.1, "ev_forecast_kw": 1.0, "source_quality": {"source": "synthetic-fixture", "status": "forecast"}}
+    ],
+    "state": {"soc": 0.5, "soh": 0.98},
+    "constraints": {
+      "contract_version": "1.0.0",
+      "trace_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "step_index": 0,
+      "dt_hours": 0.5,
+      "assets": {"source": "synthetic-fixture", "known_fields": []},
+      "price_levels": [0.4, 0.6, 0.8],
+      "network_summary": {"available": false, "reason": "synthetic fixture has no verified network model"},
+      "safety_summary": {"available": true, "source": "synthetic-fixture", "dispatch_authority": "D"}
+    }
+  },
+  "first_interval_result": {
+    "contract_version": "1.0.0",
+    "run_id": "synthetic-two-site-stage2",
+    "status": "success",
+    "failure_code": null,
+    "ledger": [{"interval_index": 0, "solver_status": "synthetic-fixture-only"}],
+    "metadata": {
+      "safe_to_dispatch": false,
+      "actions": {
+        "site-1": {"site_id": "site-1", "timestamp": "2026-01-01T00:00:00+08:00", "price_yuan_per_kwh": 0.6, "storage_kw": 0.2, "requested_ev_kw": 1.0},
+        "site-2": {"site_id": "site-2", "timestamp": "2026-01-01T00:00:00+08:00", "price_yuan_per_kwh": 0.6, "storage_kw": -0.1, "requested_ev_kw": 0.5}
+      },
+      "tie_line_flows_kw": {"link-1": -0.5}
+    }
+  }
+}

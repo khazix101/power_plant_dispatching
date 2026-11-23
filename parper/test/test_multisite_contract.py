@@ -111,6 +111,19 @@ class MultiSiteContractTests(unittest.TestCase):
         payload["sites"][0]["battery_capacity_kwh"] = 0
         self.assert_invalid(payload, "battery_capacity_kwh must be positive")
 
+    def test_transformer_zero_disables_direction_and_null_stays_unknown(self):
+        payload = valid_payload()
+        payload["sites"][0]["transformer_import_limit_kw"] = 0
+        payload["sites"][0]["transformer_export_limit_kw"] = None
+        site = MultiSiteInput.from_dict(payload).sites[0]
+        self.assertEqual(site.transformer_import_limit_kw, 0)
+        self.assertIsNone(site.transformer_export_limit_kw)
+
+    def test_rejects_negative_transformer_limit(self):
+        payload = valid_payload()
+        payload["sites"][0]["transformer_export_limit_kw"] = -0.1
+        self.assert_invalid(payload, "transformer_export_limit_kw must be non-negative")
+
     def test_rejects_out_of_range_soc(self):
         payload = valid_payload()
         payload["series"][0]["intervals"][0]["signals"]["soc"]["value"] = 1.1

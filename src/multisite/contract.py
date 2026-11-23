@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
+import math
 from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -102,12 +103,18 @@ class SiteDefinition:
             ZoneInfo(self.timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ContractError(f"unknown IANA timezone: {self.timezone}") from exc
+        # Transformer zero explicitly disables that direction; None means
+        # unknown and cannot support an execution-feasibility claim.
         for label, limit in (("transformer_import_limit_kw", self.transformer_import_limit_kw),
-                             ("transformer_export_limit_kw", self.transformer_export_limit_kw),
-                             ("pv_rated_kw", self.pv_rated_kw), ("wind_rated_kw", self.wind_rated_kw),
+                             ("transformer_export_limit_kw", self.transformer_export_limit_kw)):
+            if limit is not None and (not isinstance(limit, (int, float)) or isinstance(limit, bool)
+                                      or not math.isfinite(limit) or limit < 0):
+                raise ContractError(f"{label} must be non-negative when specified; null means unknown")
+        for label, limit in (("pv_rated_kw", self.pv_rated_kw), ("wind_rated_kw", self.wind_rated_kw),
                              ("battery_capacity_kwh", self.battery_capacity_kwh),
                              ("battery_power_kw", self.battery_power_kw), ("ev_power_limit_kw", self.ev_power_limit_kw)):
-            if limit is not None and (not isinstance(limit, (int, float)) or isinstance(limit, bool) or limit <= 0):
+            if limit is not None and (not isinstance(limit, (int, float)) or isinstance(limit, bool)
+                                      or not math.isfinite(limit) or limit <= 0):
                 raise ContractError(f"{label} must be positive when specified")
         for label, efficiency in (("battery_charge_efficiency", self.battery_charge_efficiency),
                                   ("battery_discharge_efficiency", self.battery_discharge_efficiency)):
