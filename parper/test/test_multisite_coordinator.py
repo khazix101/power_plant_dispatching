@@ -150,6 +150,7 @@ class CoordinatorTest(unittest.TestCase):
             dict(request.config,price_levels=[0.]),
             dict(request.config,price_levels={"only":2.}),
             dict(request.config,time_limit_seconds=-1.),
+            dict(request.config,time_limit_seconds=0.),
             dict(request.config,service_gap={"max_ev_service_fraction_gap":1.1}),
             dict(request.config,sites={"site1":dict(request.config["sites"]["site1"],ev_unserved_cost=-1.),
                                        "site2":request.config["sites"]["site2"]}),

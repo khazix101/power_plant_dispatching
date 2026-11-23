@@ -215,8 +215,8 @@ class CentralizedCoordinator:
             case,data = adapt_request(request)
             method = request.config["method"]
             time_limit = _number(_required(request.config,"time_limit_seconds"),"time_limit_seconds")
-            if time_limit < 0:
-                raise ValueError("time_limit_seconds must be nonnegative")
+            if time_limit <= 0:
+                raise ValueError("time_limit_seconds must be positive")
         except Exception as exc:
             return CoordinationResult(**base,status="invalid_input",failure_code="invalid_input_or_config",ledger=[],
                                       metadata=dict(common_metadata,reason=str(exc)))
