@@ -43,10 +43,12 @@ manifest 保存分区哈希、输入快照、源 Git revision、dirty 标记、�
 
 ## A/D 接口协调与限制
 
-2026-11-23 已通过 A 聊天联系其确认以下边界；尚无容量语义的最终回复：
+2026-11-23 已通过 A 聊天联系并获得确认；A 最终依赖提交为 `7bc03cc524ea1e9531fcd195f578f32909e234a2`：
 
 - A 的 SiteStrategy v1.0.0 已提供；`ContractPriceStrategy.decide(site_id, forecast, state, constraints)` 支持桥接，constraints 要求 contract_version、price_levels、trace_sha256。forecast 是显式 step+forecast mapping；state 为当前 SOC/SOH。集成时延迟导入 A 的 SiteAction，B 不复制 A 的契约模块。返回的 storage_kw 为候选安全计划，仍须交统一执行器。
-- D 当前 common-trace-v1 用名义容量执行且冻结 SOH；B 为公平对照严格镜像此语义，未自行乘 SOH 或更新退化状态。不能据此声称长期 SOH-aware 策略已经验收。与 A 的动态 BatteryState 可用容量语义尚待集成确认。
+- A 已冻结 common-trace-v1 按名义容量执行且不乘 SOH；D 当前冻结 SOH，B 为公平对照严格镜像此语义，不更新退化状态。不能据此声称长期 SOH-aware 策略已经验收。A 确认本桥接兼容 v1；动态 BatteryState 退化实验留待后续独立协议。
+- A 的 reserve_margin_kwh 是 SOC 相对技术下限的能量裕度；B 当前 reserve_kwh 是 D soc_reserve 对应的备用目标能量，SOC 能量减该目标另作观测，不把它映射成 A 的 reserve_margin_kwh。正式输入转换时需保持两个概念独立。
+- A 把响应价、购电价、售电价和 EV 交付结算价分开。B 的离网合成回放沿用 D 的“所选响应价同时作为交付单价”假设，不包含购售电，不能代替正式独立结算信号。
 - D 没有提供可验证的线路热限额，也没有非 EV 缺供的独立完整账本。thermal_limits_verified=false 保留为未验证，不计作通过，也不凭空补零。现有硬违约零仅指可观测的已检查约束。
 - 合成需求响应为 EV utility=1.9 CNY/kWh 的效用模型，训练未校准真实市场因果关系；合成样例用理想预测，三天各两个半小时，仅作端到端工程冒烟。
 - 第一阶段只学习价格。储能动作消融尚未实施；需要冻结状态/容量接口并通过长时价格实验后，单独加入安全投影下的储能动作实验。
@@ -57,7 +59,7 @@ manifest 保存分区哈希、输入快照、源 Git revision、dirty 标记、�
 
 五种子平均 EV 服务量：Agent 52 kWh、固定价 10 kWh、规则 45 kWh、BRI 80 kWh；每方法原始请求均为 80 kWh。平均运营价值分别为 31.2794、-124.8185、-1.4038、133.6779 合成元。Agent 对固定价、规则、BRI 的配对均差分别为 +156.0979、+32.6832、-102.3986；95% 区间分别为 [-18.0026,330.1983]、[-141.4173,206.7837]、[-276.4991,71.7019]，全部包含零，不宣称优势。
 
-全部 20 个方法×种子测试回放中，已检查硬约束和终端约束违约数为零；投影率均为 1（执行器为网络损耗调整计划）。热限额未验证。完整数值与逐步动作见 local/b-price-smoke-v1/summary.json 和各 test JSON。
+全部 20 个方法×种子测试回放中，已检查硬约束和终端约束违约数为零；投影率均为 1（执行器为网络损耗调整计划）。热限额未验证。完整数值与逐步动作见 local/b-price-smoke-v1/summary.json 和各 test JSON；提交版本的复跑保存在 local/b-price-smoke-74ee75b/，manifest 绑定代码提交 `74ee75b32acf775902dcaec0d72ad2bb6d3a1e38`。
 
 测试命令（均在 B 工作区）：
 
