@@ -168,7 +168,9 @@ class IntervalRecord:
             sig = Signal.from_dict(raw)
             signals[name] = sig
         for name in ("pv_forecast_kw", "wind_forecast_kw", "load_forecast_kw", "ev_forecast_kw",
-                     "price_yuan_per_kwh", "soc", "soh", "reserve_margin_kwh"):
+                     "price_yuan_per_kwh", "grid_buy_price_yuan_per_kwh",
+                     "grid_sell_price_yuan_per_kwh", "ev_delivery_price_yuan_per_kwh",
+                     "soc", "soh", "reserve_margin_kwh"):
             if name not in signals:
                 raise ContractError(f"interval: missing required field '{name}'")
         return cls(timestamp=_required(data, "timestamp", "interval"), signals=signals)

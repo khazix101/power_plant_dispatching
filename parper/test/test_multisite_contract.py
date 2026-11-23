@@ -11,6 +11,9 @@ def valid_payload():
         "load_forecast_kw": (3.0, "kW", "forecast"),
         "ev_forecast_kw": (1.0, "kW", "forecast"),
         "price_yuan_per_kwh": (None, "CNY/kWh", "missing"),
+        "grid_buy_price_yuan_per_kwh": (None, "CNY/kWh", "missing"),
+        "grid_sell_price_yuan_per_kwh": (None, "CNY/kWh", "missing"),
+        "ev_delivery_price_yuan_per_kwh": (None, "CNY/kWh", "missing"),
         "soc": (0.5, "fraction", "observed"),
         "soh": (0.98, "fraction", "observed"),
         "reserve_margin_kwh": (2.0, "kWh", "observed"),
@@ -69,8 +72,8 @@ class MultiSiteContractTests(unittest.TestCase):
 
     def test_rejects_missing_required_field(self):
         payload = valid_payload()
-        del payload["series"][0]["intervals"][0]["signals"]["ev_forecast_kw"]
-        self.assert_invalid(payload, "missing required field 'ev_forecast_kw'")
+        del payload["series"][0]["intervals"][0]["signals"]["grid_buy_price_yuan_per_kwh"]
+        self.assert_invalid(payload, "missing required field 'grid_buy_price_yuan_per_kwh'")
 
     def test_rejects_naive_timestamp(self):
         payload = valid_payload()
