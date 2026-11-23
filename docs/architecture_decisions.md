@@ -20,7 +20,7 @@
 ## ADR-002：版本化 schema 和 API（2026-11-23，契约 v1.0.0）
 
 - Python dataclass 是实现与内部调用契约，`MultiSiteInput.from_dict()` / `to_dict()` 是 JSON 可序列化边界。每条信号包含数值、单位、来源、状态；状态支持 observed/forecast/missing/assumed/stale/invalid。missing 必须为 `value: null`，assumed 必须带说明。禁止缺失静默填零。
-- 必填时序信号：PV/风电/负荷/EV 预测、响应价格、SOC、SOH、备用裕度；购电价、售电价、EV 交付价、实测 PV/风电/负荷/EV、并网功率、联络线功率可选，但缺省不等于零，且三种结算价不可互相代替。
+- 必填时序信号：PV/风电/负荷/EV 预测、响应价格、购电价、售电价、EV 交付价、SOC、SOH、备用裕度；三种结算价字段必须出现，但可显式标为 missing。实测 PV/风电/负荷/EV、并网功率、联络线功率可选，缺省不等于零；三种结算价不可互相代替。求解器必须拒绝需要但缺失的结算价格。
 - 静态站点字段以具名单位保存 PV/风电额定功率、变压器进出口限额、储能额定能量/功率/充放效率/SOC-SOH 限值、EV 功率上限和最低服务率。未确认字段保持 null。储能 SOC/SOH 时序状态仍须逐时提供。
 - 配置形态由协调请求 `config` 承载：`price_levels`、站点资产/初态/负荷优先级/公平最低服务率、上级限额、方法/超时和策略版本。所有物理参数保持具名单位字段；未知参数使用 null 并由具体算法判断能否运行。
 - `SiteStrategy.decide(site_id, forecast, state, constraints)` 返回站点候选动作；`Coordinator.coordinate(CoordinationRequest)` 返回 `CoordinationResult`。forecast/state 可直接包装既有 `ForecastBundle` 与 `BatteryState`；适配时必须要求预测步长与实际区间相符，并把半小时 `interval_hours=0.5` 传给 GameCase/安全层。既有 ForecastBundle 的默认零值字段不适用于缺测输入。
