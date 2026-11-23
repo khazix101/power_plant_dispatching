@@ -1,31 +1,25 @@
-# Agent B
+# Agent B：阶段 2 价格 Agent 回调适配
 
-## 工作区
+## 工作区与分支
 
 - 目录：`D:\YWHC\power_plant_dispatching\workspaces\B`
 - 分支：`team/b-agent`
-- 只能修改本工作区，不得修改集成目录或 A/C/D 工作区。
+- 只在本工作区修改和提交。不得改 A/C/D 工作区。
 
-## 任务
+## 本轮目标
 
-负责价格与储能调度 Agent 的设计、实现、训练接口和公平评估。
+阅读根目录 `docs/ABCD阶段2集成任务.md` 和 A 的 `docs/multisite_integration_v1.md`（如已提交）。把已有单站价格 Agent 封装成 D 可调用的 `SiteStrategy`，不重写训练器或物理环境。
 
-1. 定义观测、动作、奖励、episode 边界和信息集。观测至少包含预测窗口、负荷/EV 请求、SOC、SOH、可用容量、备用裕度、时间、上一动作/价格和网络拥塞摘要。
-2. 第一阶段只实现合法离散价格动作，价格必须来自统一 `price_levels`；储能动作必须经过安全投影。
-3. 复用 `src/game/rl.py`、`src/game/rl_env.py`、`src/game/env.py`、滚动控制和安全层，不创建第二套物理仿真器。
-4. 适配固定价格、规则、现有滚动优化/BRI 基线；训练、验证、测试按日期或场景切分，禁止数据泄漏。
-5. 支持优化结果 warm start/行为克隆；至少使用 5 个固定随机种子并保存配置、权重、训练曲线和逐步决策日志。
-6. 先完成单站价格 Agent，再单独消融储能动作。
+1. 新增/完善 D replay adapter：从 `forecast_window`、当前 SOC/SOH、assets、价格档位和 trace 信息构造现有价格 Agent 的观测；模型 checkpoint H 与 D 提供的预测窗长度不一致时，按文档约定安全截取/转换并显式记录，不得错误 reshape 或读取未来实测。
+2. 返回 A `SiteAction` 或等价 mapping：当前时间戳、合法 price level、候选 storage_kw、requested_ev_kw。非法时间、站点 ID、价格档位、缺失状态应报错；storage 和 EV 仍交 D 安全执行器投影。
+3. 支持明确加载现有 checkpoint，保存策略哈希/版本/price levels；没有 checkpoint 必须报错，不能降级成固定/规则策略并标记 Agent。
+4. 新增 D 回调形状测试：forecast H=1 与 H>1、动作时间戳/档位、确定性、SOC/SOH 可见性、未来实测隔离和 checkpoint round-trip。
 
-## 指标与边界
+## 验收
 
-奖励必须使用实际交付服务量，纳入未服务、网络/安全违约、弃电、储能损耗、退化成本和动作平滑项。报告请求量、服务量、未服务量、用户成本、交付收入、弃电、储能/网络损耗、退化成本、运营价值、违约率、投影率、运行时间和跨种子统计。不得修改 C 的优化器或 D 的评估口径，不得修改本地数据和生成物目录。
+- `parper.test.test_price_agent` 和新增 adapter tests 全通过。
+- 用现有固定 checkpoint 生成至少一个有效 SiteAction；不得使用测试规则策略冒充真实 Agent。
+- `python -m compileall -q src scripts parper/test` 通过。
+- 提交仅包含 Agent/adapter/测试/说明，提交至 `team/b-agent`，不 force-push。
 
-## 验收与提交
-
-- 测试动作合法、安全投影、随机种子、模型存取和日期级数据切分。
-- 在相同信息集、资产、初始 SOC/SOH 下配对比较 Agent、固定价、规则和优化基线。
-- 硬约束违约必须单独统计，不得被平均奖励掩盖。
-- 只提交到 `team/b-agent`，使用清晰的 Conventional Commit 信息，不得 force-push。
-
-完成时报告观测/动作/奖励定义、改动文件、训练配置和种子、基线结果、测试结果、限制和提交哈希。
+完成时报告 checkpoint revision/hash、适配边界、动作示例、测试结果、限制和提交哈希。单站 checkpoint 接入只验收工程兼容，不代表多站收益优势。
