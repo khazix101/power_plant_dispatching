@@ -1,33 +1,27 @@
-# Agent D
+# Agent D：阶段 2 联合回放执行器
 
-## 工作区
+## 工作区与分支
 
 - 目录：`D:\YWHC\power_plant_dispatching\workspaces\D`
 - 分支：`team/d-validation`
-- 只能修改本工作区，不得修改集成目录或 A/B/C 工作区。
+- 只在本工作区修改和提交。不得改 A/B/C 工作区。
 
-## 任务
+## 本轮目标
 
-负责数据质量审计、共同滚动回放、基线对照、账本和发布验收。
+阅读根目录 `docs/ABCD阶段2集成任务.md` 和 A 的 `docs/multisite_integration_v1.md`（如已提交）。升级 D 共同回放，使它能真实执行有损联络线并接入 B/C，而不只运行 heuristic copperplate arms。
 
-1. 审计各站点数据覆盖、采样频率、时区、单位、缺失率、重复记录、设备参数来源和隐私限制；区分合成、预测和实测数据。
-2. 建立统一多站滚动回放入口，为 Agent、独立站点基线和集中式联合优化器提供相同时间窗、预测、初始 SOC/SOH、资产配置、价格档位和执行账本。
-3. 维护固定价、规则、`independent-site`、`centralized-joint` 等比较臂，不重定义 B 的奖励或 C 的优化目标。
-4. 保存逐时输入、动作、站点/系统账本、源代码版本、配置哈希、随机种子、求解状态和失败状态；不得覆盖原始失败结果。
-5. 输出机器可读 manifest/summary 和简洁图表；大型运行结果留在本地生成物目录，不提交 Git。
+1. 验证 A v1 tie-line 端点、双向额定和损耗；实现按站点/联络线执行功率与损耗账本，执行站点变压器和共享上级限制。未知额定不得当零/无限制；非法或未建模 topology 明确拒绝。
+2. 扩充 `adapt_site_strategies` constraints（contract_version、trace_sha256、step_index、dt_hours、assets 和网络摘要），接入 B 的 SiteStrategy；扩充 `adapt_coordinator` 配置构建和输出解析，读取 C 首时段 `metadata.actions` 与 `tie_line_flows_kw`。
+3. 在执行层重验、投影、计数 B/C 候选动作和 tie flows。投影后仍不可行则保留失败，不下发；逐步 ledger 记录输入快照、raw/projected/executed site/tie actions、线损、站点/系统残差、求解状态和来源版本。
+4. 新增端到端双站 synthetic manifest：至少 4 个 30 分钟区间、至少 1 条有损双向联络线；运行固定价、实际 B checkpoint policy、独立站点、实际 C `CentralizedCoordinator` 四臂。测试不得把 synthetic reference heuristic 标作 Agent/optimizer。
+5. 共用输入/资产/初态哈希在四臂必须一致；能量残差 `<1e-6 kWh`；写 manifest、summary、逐步 ledger 到新的 ignored local output 目录，不覆盖旧 run。
 
-## 验收与边界
+## 验收与提交
 
-- 小型合成案例能验证时间对齐、缺失数据处理、共同输入一致性、能量守恒和重复运行一致性。
-- 默认能量账本残差阈值为绝对值 `1e-6 kWh`；调整必须先记录决议。
-- 报告请求量、服务量、未服务量、收入、用户成本、弃电、储能/网络损耗、退化成本、SOC/SOH、违约、投影率和运行时间。
-- 失败、不可行和未收敛案例必须保留并单独汇报。
-- 不读取或提交 `Dataset/` 私有原始数据，不修改 `tmp/`、`output/`、`parper/experiment_runs/`。
+- 旧 D replay/data audit tests 和新增 tie-line、变压器、B/C adapter、accounting tests 全通过。
+- 执行 command-level smoke；输出明确 `data_class=synthetic`、`ranking_authorized=false`，每臂 provider identities/status 正确、状态 completed，且最大逐站/系统能量残差低于阈值。
+- `python -m compileall -q src scripts parper/test` 通过。
+- 不读取 `Dataset/`；本地数据、checkpoint、权重和大型结果不得提交。
+- 仅提交 D 回放/测试/文档至 `team/d-validation`，不 force-push。
 
-## 提交
-
-- 只提交到 `team/d-validation`，使用清晰的 Conventional Commit 信息，例如 `test(replay): add paired multi-site ledger`。
-- 运行数据审计、回放 smoke test、相关 unittest 和编译检查，记录命令与结果。
-- 不得 force-push。
-
-完成时报告数据覆盖和质量问题、改动文件、测试/回放结果、账本残差、失败案例、manifest 路径和提交哈希。
+完成时报告 smoke manifest/summary 路径、四臂 provider identities/status、哈希一致性、最大能量残差、投影/违约数、测试结果、限制和提交哈希。

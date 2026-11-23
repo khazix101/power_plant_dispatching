@@ -1,9 +1,8 @@
 """Paired, rolling replay over a shared multi-site forecast trace.
 
-This consumer intentionally accepts A's JSON wire shape without importing or
-copying A's contract implementation. The current executor is a diagnostic
-copperplate model with an upstream import/export cap; it rejects declared
-tie-lines rather than silently ignoring topology that it cannot model.
+This consumer accepts A's JSON wire shape without copying its implementation.
+The Stage-2 executor models signed lossy tie-lines, site transformers, and
+shared upstream limits. It uses nominal battery capacity and constant SOH.
 """
 
 from __future__ import annotations
@@ -131,17 +130,15 @@ def validate_replay_input(manifest: Mapping[str, Any], missing_policy: str = "re
     prices = [_finite(value, "price level") for value in prices]
     if any(value <= 0 for value in prices) or len(set(prices)) != len(prices):
         raise ReplayContractError("price levels must be unique and positive")
-    for name in ("upstream_import_limit_kw",):
-        if _finite(manifest.get(name), name) <= 0:
-            raise ReplayContractError(f"{name} must be positive")
-    export_limit = manifest.get("upstream_export_limit_kw")
-    if export_limit is not None and _finite(export_limit, "upstream_export_limit_kw") <= 0:
-        raise ReplayContractError("upstream_export_limit_kw must be positive when specified; use null to disallow export")
+    for name in ("upstream_import_limit_kw", "upstream_export_limit_kw"):
+        if _finite(manifest.get(name), name) < 0:
+            raise ReplayContractError(f"{name} must be nonnegative; null means unknown")
     loss_fraction = _finite(manifest.get("upstream_loss_fraction", 0.0), "upstream_loss_fraction")
     if not 0 <= loss_fraction < 1:
         raise ReplayContractError("upstream_loss_fraction must be in [0, 1)")
-    if manifest.get("tie_lines", []):
-        raise ReplayContractError("this replay executor does not yet model tie_lines; refusing to ignore topology")
+    tie_lines = manifest.get("tie_lines", [])
+    if not isinstance(tie_lines, list):
+        raise ReplayContractError("tie_lines must be an array")
     method_configs = manifest.get("method_configs", {})
     if not isinstance(method_configs, Mapping):
         raise ReplayContractError("method_configs must be an object keyed by method ID")
@@ -166,6 +163,28 @@ def validate_replay_input(manifest: Mapping[str, Any], missing_policy: str = "re
     site_configs = manifest.get("site_configs")
     if not isinstance(site_configs, Mapping) or set(site_configs) != set(site_ids):
         raise ReplayContractError("site_configs must define assets and initial_states for every site")
+    site_definitions = {site["site_id"]: site for site in sites}
+    line_ids: set[str] = set()
+    for line in tie_lines:
+        if not isinstance(line, Mapping):
+            raise ReplayContractError("each tie_line must be an object")
+        line_id = line.get("line_id")
+        from_site, to_site = line.get("from_site"), line.get("to_site")
+        if not isinstance(line_id, str) or not line_id or line_id in line_ids:
+            raise ReplayContractError("tie_line IDs must be non-empty and unique")
+        line_ids.add(line_id)
+        if from_site not in site_ids or to_site not in site_ids or from_site == to_site:
+            raise ReplayContractError(f"tie_line {line_id} has invalid or unknown endpoints")
+        if not isinstance(line.get("source"), str) or not line["source"].strip():
+            raise ReplayContractError(f"tie_line {line_id} requires source provenance")
+        for limit_name in ("import_limit_kw", "export_limit_kw"):
+            limit = _finite(line.get(limit_name), f"tie_line {line_id}.{limit_name}")
+            if limit < 0:
+                raise ReplayContractError(f"tie_line {line_id}.{limit_name} must be nonnegative")
+        loss = _finite(line.get("loss_fraction"), f"tie_line {line_id}.loss_fraction")
+        if not 0 <= loss < 1:
+            raise ReplayContractError(f"tie_line {line_id}.loss_fraction must be in [0, 1)")
+
     for site_id in site_ids:
         config = site_configs[site_id]
         assets = config.get("assets", {})
@@ -193,10 +212,15 @@ def validate_replay_input(manifest: Mapping[str, Any], missing_policy: str = "re
             raise ReplayContractError(f"{site_id} initial SOC is outside asset bounds")
         if not 0.7 <= initial_soh <= 1.0:
             raise ReplayContractError(f"{site_id} initial SOH must be in [0.7, 1]")
-        if site_id in {site.get("site_id") for site in sites
-                       if site.get("transformer_import_limit_kw") is not None
-                       or site.get("transformer_export_limit_kw") is not None}:
-            raise ReplayContractError("site transformer limits are not yet modeled; refusing to ignore them")
+        site_definition = site_definitions[site_id]
+        transformer_import = _finite(site_definition.get("transformer_import_limit_kw"),
+                                     f"{site_id}.transformer_import_limit_kw")
+        if transformer_import < 0:
+            raise ReplayContractError(f"{site_id}.transformer_import_limit_kw must be nonnegative")
+        transformer_export = _finite(site_definition.get("transformer_export_limit_kw"),
+                                     f"{site_id}.transformer_export_limit_kw")
+        if transformer_export < 0:
+            raise ReplayContractError(f"{site_id}.transformer_export_limit_kw must be nonnegative")
 
     reference_axis: list[datetime] | None = None
     reference_count: int | None = None
@@ -309,8 +333,10 @@ def _project_action(raw: Any, site_id: str, timestamp: str, site_config: Mapping
                     forecast: Mapping[str, Any], state: Mapping[str, float],
                     price_levels: list[float], dt_hours: float) -> dict[str, Any]:
     action = _action_dict(raw)
-    if action.get("site_id", site_id) != site_id:
+    if action.get("site_id") != site_id:
         raise ReplayContractError(f"provider action site_id does not match {site_id}")
+    if action.get("timestamp") != timestamp:
+        raise ReplayContractError(f"{site_id} action timestamp is not aligned with common input")
     assets = site_config["assets"]
     requested_price = _finite(action.get("price_yuan_per_kwh"), f"{site_id}.action.price")
     price = min(price_levels, key=lambda level: abs(level - requested_price))
@@ -320,7 +346,9 @@ def _project_action(raw: Any, site_id: str, timestamp: str, site_config: Mapping
         accepted_request = _finite(action["accepted_ev_kw"], f"{site_id}.action.accepted_ev_kw")
     accepted_ev = min(max(accepted_request, 0.0), requested_ev, assets["ev_service_limit_kw"])
     requested_storage = _finite(action.get("storage_kw", 0.0), f"{site_id}.action.storage_kw")
-    capacity = assets["battery_capacity_kwh"] * state["soh"]
+    # Stage 2 coordinator contract uses nominal capacity and carries SOH as an
+    # audited state signal; SOH-dependent capacity fade is outside this model.
+    capacity = assets["battery_capacity_kwh"]
     storage = max(-assets["battery_power_kw"], min(assets["battery_power_kw"], requested_storage))
     if storage >= 0:
         available = max(0.0, (state["soc"] - assets["soc_reserve"]) * capacity
@@ -360,9 +388,53 @@ def _proportional_allocate(total: float, weights: Mapping[str, float]) -> dict[s
     return {key: total * max(0.0, value) / weight_sum for key, value in weights.items()}
 
 
+def _project_tie_flows(manifest: Mapping[str, Any], tie_flows_kw: Mapping[str, Any] | None,
+                       residual_kwh: dict[str, float], dt_hours: float) -> dict[str, dict[str, float]]:
+    """Project signed tie candidates onto directional, loss-aware physical support."""
+    lines = manifest.get("tie_lines", [])
+    candidates = {} if tie_flows_kw is None else tie_flows_kw
+    if not isinstance(candidates, Mapping) or set(candidates) != {line["line_id"] for line in lines}:
+        raise ReplayContractError("tie-line actions must name every configured line exactly once")
+    projected: dict[str, dict[str, float]] = {}
+    for line in lines:
+        line_id = line["line_id"]
+        requested = _finite(candidates[line_id], f"tie_line_flows_kw.{line_id}")
+        if requested >= 0:
+            rating = float(line["export_limit_kw"])
+            sender, receiver = line["from_site"], line["to_site"]
+        else:
+            rating = float(line["import_limit_kw"])
+            sender, receiver = line["to_site"], line["from_site"]
+        loss_fraction = float(line["loss_fraction"])
+        max_supported = min(rating * dt_hours,
+                            max(0.0, -residual_kwh[sender]),
+                            max(0.0, residual_kwh[receiver]) / (1.0 - loss_fraction))
+        sent = min(abs(requested) * dt_hours, max_supported)
+        executed = math.copysign(sent / dt_hours, requested) if sent > 0 else 0.0
+        received = sent * (1.0 - loss_fraction)
+        # Deficit is demand minus local supply; ties reduce receiver deficit.
+        residual_kwh[sender] += sent
+        residual_kwh[receiver] -= received
+        projected[line_id] = {
+            "requested_flow_kw": requested,
+            "executed_flow_kw": executed,
+            "sent_kwh": sent,
+            "received_kwh": received,
+            "loss_kwh": sent - received,
+            "loss_fraction": loss_fraction,
+            "projected": abs(executed - requested) > 1e-9,
+            "projection_reasons": (["directional_rating_or_site_balance"]
+                                   if abs(executed - requested) > 1e-9 else []),
+            "from_site": line["from_site"],
+            "to_site": line["to_site"],
+        }
+    return projected
+
+
 def _execute_step(manifest: Mapping[str, Any], forecasts: Mapping[str, Mapping[str, Any]],
                   states: dict[str, dict[str, float]], actions: Mapping[str, Any],
-                  dt_hours: float, timestamp: str) -> dict[str, Any]:
+                  dt_hours: float, timestamp: str,
+                  tie_line_flows_kw: Mapping[str, Any] | None = None) -> dict[str, Any]:
     site_configs = manifest["site_configs"]
     price_levels = [float(value) for value in manifest["price_levels_yuan_per_kwh"]]
     projected = {}
@@ -394,14 +466,14 @@ def _execute_step(manifest: Mapping[str, Any], forecasts: Mapping[str, Mapping[s
         in_kwh = max(-p_storage, 0.0) * dt_hours
         conversion = (out_kwh * (1.0 / asset["eta_discharge"] - 1.0)
                       + in_kwh * (1.0 - asset["eta_charge"]))
-        capacity_before = asset["battery_capacity_kwh"] * state["soh"]
+        capacity_before = asset["battery_capacity_kwh"]
         stored_before = state["soc"] * capacity_before
         stored_mid = stored_before + in_kwh * asset["eta_charge"] - out_kwh / asset["eta_discharge"]
         throughput = out_kwh + in_kwh
-        soh_after = max(0.7, state["soh"] - throughput * asset["soh_loss_per_kwh"])
-        stored_after = stored_mid * (soh_after / state["soh"])
-        degrade_energy = max(0.0, stored_mid - stored_after)
-        capacity_after = asset["battery_capacity_kwh"] * soh_after
+        soh_after = state["soh"]
+        stored_after = stored_mid
+        degrade_energy = 0.0
+        capacity_after = asset["battery_capacity_kwh"]
         soc_after = stored_after / capacity_after if capacity_after else state["soc"]
         if not asset["soc_min"] - 1e-10 <= soc_after <= asset["soc_max"] + 1e-10:
             raise ReplayContractError(f"internal SOC transition outside bounds at {site_id}")
@@ -416,54 +488,90 @@ def _execute_step(manifest: Mapping[str, Any], forecasts: Mapping[str, Mapping[s
         charge[site_id] = in_kwh
         next_states[site_id] = {"soc": soc_after, "soh": soh_after}
 
-    total_generation = sum(generation.values()) + sum(discharge.values())
-    total_charge = sum(charge.values())
-    total_user_request = sum(base_request.values()) + sum(ev_request.values())
-    net_before_grid = total_user_request + total_charge - total_generation
     import_loss_fraction = float(manifest.get("upstream_loss_fraction", 0.0))
-    import_source_cap = float(manifest["upstream_import_limit_kw"]) * dt_hours
-    delivery_cap = import_source_cap * (1.0 - import_loss_fraction)
-    delivered_import = min(max(net_before_grid, 0.0), delivery_cap)
-    upstream_import = delivered_import / (1.0 - import_loss_fraction)
-    network_loss = upstream_import - delivered_import
-    available_for_users = max(0.0, total_generation + delivered_import - total_charge)
-    served_base_total = min(sum(base_request.values()), available_for_users)
-    base_served = _proportional_allocate(served_base_total, base_request)
-    remaining = max(0.0, available_for_users - served_base_total)
-    served_ev_total = min(sum(ev_request.values()), remaining)
-    ev_served = _proportional_allocate(served_ev_total, ev_request)
-    surplus = max(0.0, total_generation + delivered_import - total_charge
-                  - sum(base_served.values()) - sum(ev_served.values()))
-    export_limit = manifest.get("upstream_export_limit_kw")
-    export_cap = 0.0 if export_limit is None else float(export_limit) * dt_hours
-    exported = min(surplus, export_cap)
-    curtailed = surplus - exported
-
-    # Site settlement balances each site through one ideal shared bus. This
-    # is an explicit synthetic copperplate simplification, not a tie-line model.
-    site_surplus_weights = {
-        site_id: max(0.0, generation[site_id] + discharge[site_id] - base_served[site_id]
-                     - ev_served[site_id] - charge[site_id])
+    # Positive values are site deficits after local generation/storage; negative
+    # values are local surplus. Tie-line losses are accounted at both terminals.
+    site_net = {
+        site_id: base_request[site_id] + ev_request[site_id] + charge[site_id]
+        - generation[site_id] - discharge[site_id]
         for site_id in site_configs
     }
-    site_export = _proportional_allocate(exported, site_surplus_weights)
-    site_curtail = _proportional_allocate(curtailed, site_surplus_weights)
+    tie_lines = _project_tie_flows(manifest, tie_line_flows_kw, site_net, dt_hours)
+    tie_in_by_site = {site_id: 0.0 for site_id in site_configs}
+    tie_out_by_site = {site_id: 0.0 for site_id in site_configs}
+    for flow in tie_lines.values():
+        sent = flow["sent_kwh"]
+        received = flow["received_kwh"]
+        sender = flow["from_site"] if flow["executed_flow_kw"] >= 0 else flow["to_site"]
+        receiver = flow["to_site"] if flow["executed_flow_kw"] >= 0 else flow["from_site"]
+        tie_out_by_site[sender] += sent
+        tie_in_by_site[receiver] += received
+    import_need = {site_id: max(0.0, value) for site_id, value in site_net.items()}
+    transformer_source_caps = {
+        site_id: (float(next(site for site in manifest["sites"] if site["site_id"] == site_id)
+                        ["transformer_import_limit_kw"]) * dt_hours)
+        for site_id in site_configs
+    }
+    site_import_desired = {
+        site_id: min(import_need[site_id], transformer_source_caps[site_id])
+        for site_id in site_configs
+    }
+    upstream_source_cap = float(manifest["upstream_import_limit_kw"]) * dt_hours
+    import_delivery_cap = upstream_source_cap * (1.0 - import_loss_fraction)
+    delivered_import_by_site = _proportional_allocate(
+        min(sum(site_import_desired.values()), import_delivery_cap), site_import_desired)
+    upstream_import = (sum(delivered_import_by_site.values()) / (1.0 - import_loss_fraction))
+    network_loss = upstream_import - sum(delivered_import_by_site.values())
+
+    base_served = {}
+    ev_served = {}
+    site_export = {}
+    site_curtail = {}
+    site_transformer_export = {}
+    for site_id in site_configs:
+        available = (generation[site_id] + discharge[site_id]
+                     + delivered_import_by_site[site_id]
+                     + tie_in_by_site[site_id] - tie_out_by_site[site_id]
+                     - charge[site_id])
+        served_base = min(base_request[site_id], max(0.0, available))
+        served_ev = min(ev_request[site_id], max(0.0, available - served_base))
+        base_served[site_id], ev_served[site_id] = served_base, served_ev
+        surplus = max(0.0, available - served_base - served_ev)
+        site_definition = next(site for site in manifest["sites"] if site["site_id"] == site_id)
+        export_limit = site_definition["transformer_export_limit_kw"]
+        transformer_export_cap = float(export_limit) * dt_hours
+        site_transformer_export[site_id] = min(surplus, transformer_export_cap)
+        site_export[site_id] = site_transformer_export[site_id]
+        site_curtail[site_id] = surplus - site_export[site_id]
+    total_export_limit = manifest["upstream_export_limit_kw"]
+    upstream_export_cap = float(total_export_limit) * dt_hours
+    upstream_export = min(sum(site_export.values()), upstream_export_cap)
+    if upstream_export < sum(site_export.values()):
+        site_export = _proportional_allocate(upstream_export, site_export)
+    site_transformer_export = dict(site_export)
+    # Power outside the transformer/upstream export path is explicitly curtailed.
+    for site_id in site_configs:
+        raw_surplus = max(0.0, generation[site_id] + discharge[site_id]
+                          + delivered_import_by_site[site_id] + tie_in_by_site[site_id]
+                          - tie_out_by_site[site_id] - charge[site_id]
+                          - base_served[site_id] - ev_served[site_id])
+        site_curtail[site_id] = raw_surplus - site_export[site_id]
+
     site_ledgers = {}
+    total_base_unserved = sum(base_request.values()) - sum(base_served.values())
+    # When shared upstream supply is scarce, base demand is served before EVs
+    # at each site; this is a declared synthetic executor priority.
     system_residual = (sum(generation.values()) + upstream_import
                        - sum(base_served.values()) - sum(ev_served.values())
-                       - exported - curtailed - network_loss
+                       - upstream_export - sum(site_curtail.values())
+                       - network_loss - sum(flow["loss_kwh"] for flow in tie_lines.values())
                        - sum(battery_loss.values()) - sum(degradation_loss.values())
                        - sum(delta_storage.values()))
     for site_id in site_configs:
         action = projected[site_id]
-        cfg = site_configs[site_id]
-        # Positive means imported from the shared bus; negative means supplied
-        # to the shared bus. Site exchanges net to post-loss upstream delivery.
-        exchange = (base_served[site_id] + ev_served[site_id] + charge[site_id]
-                    + site_export[site_id] + site_curtail[site_id]
-                    - generation[site_id] - discharge[site_id])
-        site_residual = (generation[site_id] + exchange - base_served[site_id]
-                         - ev_served[site_id] - site_export[site_id]
+        site_residual = (generation[site_id] + delivered_import_by_site[site_id]
+                         + tie_in_by_site[site_id] - tie_out_by_site[site_id]
+                         - base_served[site_id] - ev_served[site_id] - site_export[site_id]
                          - site_curtail[site_id] - battery_loss[site_id]
                          - degradation_loss[site_id] - delta_storage[site_id])
         ev_requested_total = forecasts[site_id]["ev_forecast_kw"] * dt_hours
@@ -490,25 +598,41 @@ def _execute_step(manifest: Mapping[str, Any], forecasts: Mapping[str, Mapping[s
             "storage_charge_input_kwh": charge[site_id],
             "storage_discharge_output_kwh": discharge[site_id],
             "storage_conversion_loss_kwh": battery_loss[site_id],
-            "network_loss_kwh_allocated": 0.0,
-            "shared_bus_exchange_kwh": exchange,
+            "network_loss_kwh_allocated": (network_loss * delivered_import_by_site[site_id]
+                                           / sum(delivered_import_by_site.values())
+                                           if sum(delivered_import_by_site.values()) > 1e-15 else 0.0),
+            "upstream_import_delivered_kwh": delivered_import_by_site[site_id],
+            "upstream_transformer_import_source_kwh": (
+                delivered_import_by_site[site_id] / (1.0 - import_loss_fraction)),
+            "tie_line_import_kwh": tie_in_by_site[site_id],
+            "tie_line_export_kwh": tie_out_by_site[site_id],
+            "transformer_export_kwh": site_export[site_id],
+            "shared_bus_exchange_kwh": delivered_import_by_site[site_id] - site_export[site_id],
             "degradation_energy_loss_kwh": degradation_loss[site_id],
             "degradation_cost_yuan": degradation_cost[site_id],
             "soc_change": state_after["soc"] - state_before["soc"],
             "soh_change": state_after["soh"] - state_before["soh"],
-            "constraint_violation_count": 0,
+            "constraint_violation_count": (int(action["projected"])
+                                            + sum(int(flow["projected"])
+                                                  for flow in tie_lines.values())),
             "energy_residual_kwh": site_residual,
         }
-    positive_exchange_sum = sum(max(0.0, record["shared_bus_exchange_kwh"])
-                                for record in site_ledgers.values())
-    for record in site_ledgers.values():
-        weight = max(0.0, record["shared_bus_exchange_kwh"])
-        record["network_loss_kwh_allocated"] = (
-            network_loss * weight / positive_exchange_sum if positive_exchange_sum > 1e-15 else 0.0
-        )
 
     return {
         "actions": projected,
+        "projected_actions": copy.deepcopy(projected),
+        "executed_actions": {
+            site_id: {
+                "site_id": site_id,
+                "timestamp": timestamp,
+                "storage_kw": projected[site_id]["storage_kw"],
+                "requested_ev_kw": projected[site_id]["accepted_ev_kw"],
+                "served_ev_kw": ev_served[site_id] / dt_hours,
+                "upstream_import_delivered_kw": delivered_import_by_site[site_id] / dt_hours,
+                "tie_line_import_kw": tie_in_by_site[site_id] / dt_hours,
+                "tie_line_export_kw": tie_out_by_site[site_id] / dt_hours,
+            } for site_id in site_configs
+        },
         "site_ledgers": site_ledgers,
         "system_ledger": {
             "requested_kwh": sum(forecasts[s]["ev_forecast_kw"] * dt_hours for s in site_configs),
@@ -520,34 +644,49 @@ def _execute_step(manifest: Mapping[str, Any], forecasts: Mapping[str, Mapping[s
                                   for s in site_configs),
             "base_load_requested_kwh": sum(base_request.values()),
             "base_load_served_kwh": sum(base_served.values()),
-            "base_load_unserved_kwh": max(0.0, sum(base_request.values()) - sum(base_served.values())),
+            "base_load_unserved_kwh": total_base_unserved,
             "delivered_revenue_yuan": sum(record["delivered_revenue_yuan"] for record in site_ledgers.values()),
             "user_cost_yuan": sum(record["user_cost_yuan"] for record in site_ledgers.values()),
             "service_rate": (sum(ev_served.values())
                              / sum(forecast["ev_forecast_kw"] * dt_hours for forecast in forecasts.values())
                              if any(forecast["ev_forecast_kw"] > 0 for forecast in forecasts.values()) else None),
-            "curtailment_kwh": curtailed,
+            "curtailment_kwh": sum(site_curtail.values()),
             "storage_conversion_loss_kwh": sum(battery_loss.values()),
             "network_loss_kwh": network_loss,
-            "upstream_import_delivered_kwh": delivered_import,
+            "upstream_import_delivered_kwh": sum(delivered_import_by_site.values()),
             "upstream_import_source_kwh": upstream_import,
-            "upstream_export_kwh": exported,
+            "upstream_export_kwh": upstream_export,
+            "transformer_export_kwh": sum(site_transformer_export.values()),
+            "tie_line_sent_kwh": sum(flow["sent_kwh"] for flow in tie_lines.values()),
+            "tie_line_received_kwh": sum(flow["received_kwh"] for flow in tie_lines.values()),
+            "tie_line_loss_kwh": sum(flow["loss_kwh"] for flow in tie_lines.values()),
             "degradation_cost_yuan": sum(degradation_cost.values()),
             "degradation_energy_loss_kwh": sum(degradation_loss.values()),
             "soc_change_by_site": {s: next_states[s]["soc"] - states[s]["soc"] for s in site_configs},
             "soh_change_by_site": {s: next_states[s]["soh"] - states[s]["soh"] for s in site_configs},
-            "constraint_violation_count": 0,
-            "projection_count": sum(1 for action in projected.values() if action["projected"]),
-            "action_count": len(projected),
+            "constraint_violation_count": (sum(int(action["projected"]) for action in projected.values())
+                                            + sum(int(flow["projected"]) for flow in tie_lines.values())),
+            "projection_count": (sum(1 for action in projected.values() if action["projected"])
+                                 + sum(1 for flow in tie_lines.values() if flow["projected"])),
+            "action_count": len(projected) + len(tie_lines),
             "energy_residual_kwh": system_residual,
             "energy_identity_tolerance_kwh": LEDGER_TOLERANCE_KWH,
             "energy_identity_passed": abs(system_residual) < LEDGER_TOLERANCE_KWH,
             "constraint_scope": {
                 "evaluated": ["battery_SOC", "battery_power", "EV_service_limit",
-                              "upstream_import_limit", "upstream_export_limit"],
+                              "site_transformer_import_limit", "site_transformer_export_limit",
+                              "upstream_import_limit", "upstream_export_limit", "tie_line_directional_limits",
+                              "tie_line_site_balance", "tie_line_losses"],
                 "not_evaluated": [],
-                "model_boundary": "copperplate shared bus; no tie-line flow model",
+                "model_boundary": "lossy tie-line paths and site transformers; synthetic network model",
             },
+        },
+        "tie_line_flows": tie_lines,
+        "projected_tie_line_flows_kw": {
+            line_id: flow["executed_flow_kw"] for line_id, flow in tie_lines.items()
+        },
+        "executed_tie_line_flows_kw": {
+            line_id: flow["executed_flow_kw"] for line_id, flow in tie_lines.items()
         },
         "next_states": next_states,
     }
@@ -567,6 +706,17 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
     trace_digest = input_sha256(manifest)
     series = {row["site_id"]: row["intervals"] for row in manifest["series"]}
     site_ids = [site["site_id"] for site in manifest["sites"]]
+    common_hashes = {
+        "trace_sha256": trace_digest,
+        "assets_sha256": sha256_json({
+            "site_definitions": manifest["sites"],
+            "site_assets": {site_id: manifest["site_configs"][site_id]["assets"]
+                            for site_id in site_ids},
+        }),
+        "initial_states_sha256": sha256_json({
+            site_id: manifest["site_configs"][site_id]["initial_state"] for site_id in site_ids
+        }),
+    }
     n_steps = len(next(iter(series.values())))
     dt_hours = float(manifest["interval_minutes"]) / 60.0
     run_results = {}
@@ -614,10 +764,17 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                            for name in REQUIRED_SIGNALS):
                         windows[site_id].append({"timestamp": future["timestamp"], "quality_status": "missing"})
                     else:
-                        windows[site_id].append({
+                        forecast_row = {
                             "timestamp": future["timestamp"],
                             **{name: future["signals"][name]["value"] for name in FORECAST_SIGNALS},
-                        })
+                            "source_quality": {
+                                name: {"source": future["signals"][name]["source"],
+                                       "status": future["signals"][name]["status"]}
+                                for name in ("pv_forecast_kw", "wind_forecast_kw",
+                                             "load_forecast_kw", "ev_forecast_kw")
+                            },
+                        }
+                        windows[site_id].append(forecast_row)
             context = {
                 "trace_sha256": trace_digest,
                 "step_index": step_index,
@@ -644,12 +801,54 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                 "site_configs": copy.deepcopy(manifest["site_configs"]),
                 "price_levels_yuan_per_kwh": list(manifest["price_levels_yuan_per_kwh"]),
                 "system_constraints": {
+                    "contract_version": manifest["contract_version"],
+                    "trace_sha256": trace_digest,
+                    "step_index": step_index,
+                    "dt_hours": dt_hours,
                     "upstream_import_limit_kw": manifest["upstream_import_limit_kw"],
                     "upstream_export_limit_kw": manifest.get("upstream_export_limit_kw"),
                     "upstream_loss_fraction": manifest.get("upstream_loss_fraction", 0.0),
                     "tie_lines": copy.deepcopy(manifest.get("tie_lines", [])),
+                    "network_summary": {
+                        "available": False,
+                        "reason": ("Synthetic tie-line and transformer limits are enforced by D; "
+                                   "voltage-flow state is not modeled."),
+                        "source": "replay_manifest",
+                        "upstream_import_limit_kw": manifest["upstream_import_limit_kw"],
+                        "upstream_export_limit_kw": manifest.get("upstream_export_limit_kw"),
+                        "upstream_loss_fraction": manifest.get("upstream_loss_fraction", 0.0),
+                        "tie_lines": copy.deepcopy(manifest.get("tie_lines", [])),
+                        "site_transformers": {
+                            site["site_id"]: {
+                                "import_limit_kw": site["transformer_import_limit_kw"],
+                                "export_limit_kw": site["transformer_export_limit_kw"],
+                            } for site in manifest["sites"]
+                        },
+                    },
+                    "safety_summary": {
+                        "available": True,
+                        "source": "D replay executor",
+                        "dispatch_authority": "D",
+                        "candidate_only": True,
+                    },
                 },
+                "coordinator_config": copy.deepcopy(manifest.get("coordinator_config", {})),
+                "method_config": copy.deepcopy(manifest.get("method_configs", {}).get(method_id, {})),
             }
+            # A rolling coordinator request begins from this arm's current
+            # replay state, while all forecasts and the original trace remain
+            # shared. A's reserve-margin signal is derived consistently from
+            # the declared SOC minimum and nominal capacity.
+            for site_payload in context["input_payload"]["series"]:
+                site_id = site_payload["site_id"]
+                first_signals = site_payload["intervals"][0]["signals"]
+                first_signals["soc"]["value"] = states[site_id]["soc"]
+                first_signals["soh"]["value"] = states[site_id]["soh"]
+                asset_definition = next(site for site in manifest["sites"]
+                                        if site["site_id"] == site_id)
+                first_signals["reserve_margin_kwh"]["value"] = (
+                    states[site_id]["soc"] - float(asset_definition["soc_min"])
+                ) * float(asset_definition["battery_capacity_kwh"])
             provider_runtime = None
             site_provider_runtime = {}
             provider_result = None
@@ -682,7 +881,7 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                     raise ReplayContractError("provider must return exactly one action for every configured site")
                 for site_id in site_ids:
                     raw = _action_dict(action_map[site_id])
-                    action_timestamp = raw.get("timestamp", timestamp)
+                    action_timestamp = raw.get("timestamp")
                     if action_timestamp != timestamp:
                         raise ReplayContractError(f"{site_id} action timestamp is not aligned with common input")
                     if "solver_status" in raw and raw["solver_status"] not in (_SUCCESS_STATUSES | {"not_applicable"}):
@@ -707,9 +906,40 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                     solver_status = (action_solver_statuses[0] if len(action_solver_statuses) == 1
                                      else "mixed:" + ",".join(action_solver_statuses))
                 started = time.perf_counter()
+                tie_flows = (provider_result.get("tie_line_flows_kw")
+                             if isinstance(provider_result, Mapping) else None)
+                if tie_flows is None:
+                    tie_flows = {line["line_id"]: 0.0 for line in manifest.get("tie_lines", [])}
                 step_result = _execute_step(manifest, forecasts, states, action_map,
-                                            dt_hours, timestamp)
+                                            dt_hours, timestamp, tie_flows)
                 step_runtime = time.perf_counter() - started
+                residuals = [abs(step_result["system_ledger"]["energy_residual_kwh"])]
+                residuals.extend(abs(site["energy_residual_kwh"])
+                                 for site in step_result["site_ledgers"].values())
+                if any(value >= LEDGER_TOLERANCE_KWH for value in residuals):
+                    status = "accounting_failed"
+                    failure = {
+                        "step_index": step_index, "timestamp": timestamp,
+                        "status": status, "failure_code": "energy_ledger_residual",
+                        "max_abs_energy_residual_kwh": max(residuals),
+                        "message": "execution withheld because site or system energy identity failed",
+                    }
+                    records.append({
+                        "step_index": step_index, "timestamp": timestamp, "dt_hours": dt_hours,
+                        "input_snapshot": context,
+                        "raw_actions": {key: _action_dict(value) for key, value in action_map.items()},
+                        "raw_tie_line_flows_kw": copy.deepcopy(tie_flows),
+                        **step_result,
+                        "solver_status": solver_status,
+                        "execution_status": "failed",
+                        "failure": failure,
+                        "provider_runtime_seconds": provider_runtime,
+                        "provider_result_metadata": _json_compatible(
+                            provider_result.get("metadata", {}) if isinstance(provider_result, Mapping) else {}),
+                        "provider_result_ledger": _json_compatible(
+                            provider_result.get("ledger", ()) if isinstance(provider_result, Mapping) else ()),
+                    })
+                    break
                 states = step_result.pop("next_states")
                 projection_count += step_result["system_ledger"]["projection_count"]
                 action_count += step_result["system_ledger"]["action_count"]
@@ -717,6 +947,11 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                     "step_index": step_index, "timestamp": timestamp, "dt_hours": dt_hours,
                     "input_quality_status": "complete", "input_snapshot": context,
                     "raw_actions": {key: _action_dict(value) for key, value in action_map.items()},
+                    "raw_tie_line_flows_kw": copy.deepcopy(tie_flows),
+                    "provider_result_metadata": _json_compatible(
+                        provider_result.get("metadata", {}) if isinstance(provider_result, Mapping) else {}),
+                    "provider_result_ledger": _json_compatible(
+                        provider_result.get("ledger", ()) if isinstance(provider_result, Mapping) else ()),
                     **step_result,
                     "site_provider_runtime_seconds": site_provider_runtime,
                     "solver_status": solver_status,
@@ -750,7 +985,10 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
                          "upstream_export_kwh", "degradation_cost_yuan", "degradation_energy_loss_kwh",
                          "constraint_violation_count")
         }
-        residuals = [abs(record["system_ledger"]["energy_residual_kwh"]) for record in executed]
+        ledger_records = [record for record in records if record.get("system_ledger") is not None]
+        residuals = [abs(record["system_ledger"]["energy_residual_kwh"]) for record in ledger_records]
+        residuals.extend(abs(site["energy_residual_kwh"])
+                         for record in ledger_records for site in record["site_ledgers"].values())
         site_summaries = {}
         for site_id in site_ids:
             site_steps = [record["site_ledgers"][site_id] for record in executed]
@@ -787,7 +1025,8 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
             "steps_executed": len(executed),
             "steps_missing_marked": sum(record.get("execution_status") == "input_missing_marked" for record in records),
             "max_abs_energy_residual_kwh": max(residuals, default=None),
-            "energy_ledger_passed": bool(residuals) and all(value < LEDGER_TOLERANCE_KWH for value in residuals),
+            "energy_ledger_passed": (len(executed) == n_steps and bool(residuals)
+                                     and all(value < LEDGER_TOLERANCE_KWH for value in residuals)),
             "projection_count": projection_count,
             "action_count": action_count,
             "projection_rate": projection_count / action_count if action_count else 0.0,
@@ -812,6 +1051,7 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
             "status": status,
             "provider": getattr(provider, "provider_type", "external_callback"),
             "trace_sha256": trace_digest,
+            "common_input_hashes": copy.deepcopy(common_hashes),
             "initial_states": {site_id: dict(manifest["site_configs"][site_id]["initial_state"])
                                for site_id in site_ids},
             "summary": totals,
@@ -824,6 +1064,7 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
             "provider_type": getattr(provider, "provider_type", "external_callback"),
             "provider_identity": f"{getattr(provider, '__module__', type(provider).__module__)}."
                                 f"{getattr(provider, '__qualname__', type(provider).__qualname__)}",
+            "provider_details": _json_compatible(getattr(provider, "provider_details", {})),
             "configuration": manifest.get("method_configs", {}).get(method_id, {}),
         }
         for method_id, provider in methods.items()
@@ -839,12 +1080,14 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
         "data_class": manifest["data_class"],
         "seed": manifest["seed"],
         "trace_sha256": trace_digest,
+        "common_input_hashes": common_hashes,
         "configuration_sha256": sha256_json({
             "sites": manifest["sites"], "site_configs": manifest["site_configs"],
             "price_levels_yuan_per_kwh": manifest["price_levels_yuan_per_kwh"],
             "upstream_import_limit_kw": manifest["upstream_import_limit_kw"],
             "upstream_export_limit_kw": manifest.get("upstream_export_limit_kw"),
             "upstream_loss_fraction": manifest.get("upstream_loss_fraction", 0.0),
+            "tie_lines": manifest.get("tie_lines", []),
             "method_config_sha256": method_config_digest,
         }),
         "method_config_sha256": method_config_digest,
@@ -855,7 +1098,7 @@ def run_paired_replay(manifest: Mapping[str, Any], methods: Mapping[str, Callabl
         "missing_policy": missing_policy,
         "marked_data_quality_issues": marked_missing,
         "ranking_authorized": False,
-        "accounting_model": "diagnostic_copperplate_shared_bus_v1",
+        "accounting_model": "synthetic_lossy_tieline_transformer_nominal_capacity_v1",
         "results": run_results,
     }
 
@@ -876,10 +1119,13 @@ def adapt_site_strategies(strategies: Mapping[str, Any]) -> Callable[[dict[str, 
             started = time.perf_counter()
             actions[site_id] = strategy.decide(
                 site_id=site_id,
-                forecast=context["forecast_windows"][site_id],
+                forecast_window=context["forecast_windows"][site_id],
                 state=context["states"][site_id],
                 constraints={**context["system_constraints"],
                              "assets": context["site_configs"][site_id]["assets"],
+                             "price_levels": context["price_levels_yuan_per_kwh"],
+                             "network_summary": context["system_constraints"]["network_summary"],
+                             "safety_summary": context["system_constraints"]["safety_summary"],
                              "price_levels_yuan_per_kwh": context["price_levels_yuan_per_kwh"]},
             )
             site_runtime[site_id] = time.perf_counter() - started
@@ -891,12 +1137,11 @@ def adapt_site_strategies(strategies: Mapping[str, Any]) -> Callable[[dict[str, 
 
 def adapt_coordinator(coordinator: Any, request_builder: Callable[[dict[str, Any]], Any] | None = None,
                       result_parser: Callable[[Any], Mapping[str, Any]] | None = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    """Adapt a coordinator without binding D to an unmerged A/B/C checkout.
+    """Adapt a coordinator using the frozen v1 config and first-step metadata.
 
-    ``request_builder`` can construct A's ``CoordinationRequest`` once its
-    contract package is present in the integrating branch. By default the
-    serialized common request is passed through as a mapping. The parser must
-    return ``{site_id: SiteAction-like}``; status and solver status are retained.
+    ``request_builder`` can construct A's ``CoordinationRequest`` when an
+    embedding application needs to supply its own contract import. Otherwise D
+    builds a v1 ``CoordinationRequest`` and never invents coordinator costs.
     """
     def provider(context: dict[str, Any]) -> dict[str, Any]:
         if request_builder:
@@ -909,47 +1154,68 @@ def adapt_coordinator(coordinator: Any, request_builder: Callable[[dict[str, Any
                     MultiSiteInput,
                 )
             except ImportError:
-                request = context
+                raise ReplayContractError(
+                    "A multisite contract package is required for CentralizedCoordinator")
             else:
                 input_data = MultiSiteInput.from_dict(context["input_payload"])
+                declared = context.get("coordinator_config")
+                method = context.get("method_config", {}).get("method", "centralized")
+                if not isinstance(declared, Mapping):
+                    raise ReplayContractError("coordinator_config must declare frozen v1 values")
+                required_top = {"provenance", "service_gap", "time_limit_seconds", "sites"}
+                if required_top - declared.keys():
+                    raise ReplayContractError(
+                        f"coordinator_config is missing {sorted(required_top - declared.keys())}")
+                config = {
+                    "provenance": copy.deepcopy(declared["provenance"]),
+                    "method": method,
+                    "price_levels": list(context["price_levels_yuan_per_kwh"]),
+                    "service_gap": copy.deepcopy(declared["service_gap"]),
+                    "time_limit_seconds": declared["time_limit_seconds"],
+                    "sites": copy.deepcopy(declared["sites"]),
+                }
                 request = CoordinationRequest(
                     contract_version=CONTRACT_VERSION,
                     run_id=f"{context['trace_sha256'][:12]}-{context['step_index']:05d}",
                     input=input_data,
-                    config={
-                        "site_configs": context["site_configs"],
-                        "price_levels_yuan_per_kwh": context["price_levels_yuan_per_kwh"],
-                        "system_constraints": context["system_constraints"],
-                        "seed": context["seed"],
-                    },
+                    config=config,
                 )
         result = coordinator.coordinate(request)
+        requested_version = getattr(request, "contract_version", None)
+        requested_run_id = getattr(request, "run_id", None)
+        result_version = getattr(result, "contract_version", requested_version)
+        result_run_id = getattr(result, "run_id", requested_run_id)
+        if ((requested_version is not None and result_version != requested_version)
+                or (requested_run_id is not None and result_run_id != requested_run_id)):
+            raise ReplayContractError("coordinator result contract_version/run_id do not match request")
         if result_parser:
             parsed = result_parser(result)
         elif isinstance(result, Mapping):
-            parsed = result
+            parsed = dict(result)
+            parsed.setdefault("solver_status", parsed.get("status", "not_applicable"))
         elif all(hasattr(result, name) for name in ("status", "ledger")):
             metadata = getattr(result, "metadata", {}) or {}
+            failure_code = getattr(result, "failure_code", None)
+            result_status = getattr(result, "status")
+            # The solver may return a candidate only for an actual successful
+            # solve. Preserve all non-optimal states and never infer from ledger.
+            successful = result_status in {"optimal", "success", "completed"} and not failure_code
+            if metadata.get("safe_to_dispatch") is not False:
+                raise ReplayContractError("coordinator metadata.safe_to_dispatch must be false in Stage 2")
             parsed = {
-                "status": getattr(result, "status"),
+                "status": "ok" if successful else str(result_status),
                 "solver_status": metadata.get("solver_status", getattr(result, "status")),
-                "failure_code": getattr(result, "failure_code", None),
-                "actions": metadata.get("actions", {}),
+                "failure_code": failure_code,
+                "actions": metadata.get("actions", {}) if successful else {},
+                "tie_line_flows_kw": metadata.get("tie_line_flows_kw", {}) if successful else {},
+                "ledger": _json_compatible(getattr(result, "ledger", ())),
+                "metadata": _json_compatible(metadata),
                 "message": metadata.get("message", ""),
             }
-            if parsed["failure_code"]:
-                parsed["status"] = "failed"
-            if not parsed["actions"]:
-                entries = getattr(result, "ledger", ())
-                parsed["actions"] = {
-                    (getattr(entry, "site_id", None) if not isinstance(entry, Mapping)
-                     else entry.get("site_id")):
-                    (getattr(entry, "action", None) if not isinstance(entry, Mapping)
-                     else entry.get("action"))
-                    for entry in entries
-                    if ((getattr(entry, "site_id", None) if not isinstance(entry, Mapping)
-                         else entry.get("site_id")) is not None)
-                }
+            if successful and not parsed["actions"]:
+                raise ReplayContractError("successful coordinator result has no metadata.actions")
+            if successful and not isinstance(parsed["tie_line_flows_kw"], Mapping):
+                raise ReplayContractError("successful coordinator result has no tie_line_flows_kw mapping")
         else:
             parsed = result
         if not isinstance(parsed, Mapping):
@@ -969,7 +1235,14 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
     start = datetime(2024, 1, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
     site_ids = ["SYN-01", "SYN-02"]
     sites = [{"site_id": site_id, "timezone": "Asia/Shanghai",
-              "source": f"synthetic-generator:seed={seed}"}
+              "source": f"synthetic-generator:seed={seed}",
+              "transformer_import_limit_kw": 60.0,
+              "transformer_export_limit_kw": 60.0,
+              "pv_rated_kw": 30.0, "wind_rated_kw": 30.0,
+              "battery_capacity_kwh": 40.0, "battery_power_kw": 20.0,
+              "battery_charge_efficiency": 0.95, "battery_discharge_efficiency": 0.95,
+              "soc_min": 0.1, "soc_max": 0.9, "soh_min": 0.7,
+              "ev_power_limit_kw": 30.0, "minimum_ev_service_fraction": 0.0}
              for site_id in site_ids]
     site_configs = {}
     for index, site_id in enumerate(site_ids):
@@ -1003,13 +1276,16 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
                 "wind_forecast_kw": (wind, "kW", "forecast"),
                 "load_forecast_kw": (base, "kW", "forecast"),
                 "ev_forecast_kw": (ev, "kW", "forecast"),
-                "price_yuan_per_kwh": (1.8, "CNY/kWh", "forecast"),
+                "price_yuan_per_kwh": (1.9, "CNY/kWh", "forecast"),
                 "grid_buy_price_yuan_per_kwh": (0.75, "CNY/kWh", "forecast"),
                 "grid_sell_price_yuan_per_kwh": (0.25, "CNY/kWh", "forecast"),
-                "ev_delivery_price_yuan_per_kwh": (1.8, "CNY/kWh", "forecast"),
+                "ev_delivery_price_yuan_per_kwh": (1.9, "CNY/kWh", "forecast"),
                 "soc": (site_configs[site_id]["initial_state"]["soc"], "fraction", "assumed"),
                 "soh": (0.98, "fraction", "assumed"),
-                "reserve_margin_kwh": (8.0, "kWh", "assumed"),
+                "reserve_margin_kwh": ((site_configs[site_id]["initial_state"]["soc"]
+                                         - site_configs[site_id]["assets"]["soc_min"])
+                                        * site_configs[site_id]["assets"]["battery_capacity_kwh"],
+                                        "kWh", "assumed"),
             }
             signals = {}
             for name, (value, unit, status) in values.items():
@@ -1032,15 +1308,36 @@ def build_synthetic_manifest(seed: int = 17, step_count: int = 4) -> dict[str, A
         "timezone": "Asia/Shanghai",
         "interval_minutes": 30,
         "prediction_horizon_steps": step_count,
-        "price_levels_yuan_per_kwh": [1.2, 1.5, 1.8, 2.1, 2.4],
+        "price_levels_yuan_per_kwh": [1.5, 1.7, 1.9, 2.1, 2.3, 2.5],
         "upstream_import_limit_kw": 60.0,
-        "upstream_export_limit_kw": None,
+        "upstream_export_limit_kw": 60.0,
         "upstream_loss_fraction": 0.02,
         "sites": sites,
-        "tie_lines": [],
+        "tie_lines": [{
+            "line_id": "SYN-LINK-01", "from_site": "SYN-01", "to_site": "SYN-02",
+            "import_limit_kw": 8.0, "export_limit_kw": 8.0,
+            "loss_fraction": 0.05, "source": f"synthetic-generator:seed={seed}",
+        }],
         "site_configs": site_configs,
         "series": series,
         "method_scope": "Methods are diagnostic reference policies until B/C adapters are supplied.",
+        "coordinator_config": {
+            "provenance": {"data_class": "synthetic", "source": f"synthetic-generator:seed={seed}"},
+            "method": "centralized",
+            "service_gap": {"max_ev_service_fraction_gap": 0.5},
+            "time_limit_seconds": 10.0,
+            "sites": {
+                site_id: {
+                    "soc_terminal": site_configs[site_id]["initial_state"]["soc"],
+                    "reserve_requirement_kwh": (site_configs[site_id]["assets"]["battery_capacity_kwh"]
+                                                 * site_configs[site_id]["assets"]["soc_reserve"]),
+                    "degradation_per_kwh": site_configs[site_id]["assets"]["degradation_cost_yuan_per_kwh"],
+                    "base_min_fraction": 0.0,
+                    "base_unserved_cost": 100.0,
+                    "ev_unserved_cost": 20.0,
+                } for site_id in site_ids
+            },
+        },
     }
     manifest["input_sha256"] = input_sha256(manifest)
     return manifest
@@ -1061,7 +1358,7 @@ def reference_providers() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]
         }
 
     def fixed_price(context):
-        price = 1.2
+        price = context["price_levels_yuan_per_kwh"][0]
         return {site_id: make_action(site_id, context, price=price, storage=0.0)
                 for site_id in context["forecasts"]}
 
@@ -1072,7 +1369,7 @@ def reference_providers() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]
             net = forecast["pv_forecast_kw"] + forecast["wind_forecast_kw"] - forecast["load_forecast_kw"]
             storage = -8.0 if net > 4.0 and state["soc"] < 0.82 else (
                 8.0 if net < 0.0 and state["soc"] > 0.3 else 0.0)
-            price = 1.2 if net >= 0.0 else 2.1
+            price = 1.5 if net >= 0.0 else 2.1
             actions[site_id] = make_action(site_id, context, price=price, storage=storage)
         return actions
 
@@ -1083,7 +1380,7 @@ def reference_providers() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]
             local_net = forecast["pv_forecast_kw"] + forecast["wind_forecast_kw"] - forecast["load_forecast_kw"] - forecast["ev_forecast_kw"]
             storage = 6.0 if local_net < -3.0 and state["soc"] > 0.3 else (
                 -6.0 if local_net > 3.0 and state["soc"] < 0.8 else 0.0)
-            actions[site_id] = make_action(site_id, context, price=1.8, storage=storage)
+            actions[site_id] = make_action(site_id, context, price=1.9, storage=storage)
         return actions
 
     def centralized_joint(context):
@@ -1104,7 +1401,7 @@ def reference_providers() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]
             else:
                 storage = 0.0
             actions[site_id] = make_action(site_id, context,
-                                           price=1.8 if aggregate_net >= 0 else 2.1,
+                                           price=1.9 if aggregate_net >= 0 else 2.1,
                                            storage=storage)
         return actions
 
@@ -1135,6 +1432,8 @@ def write_replay_artifacts(result: Mapping[str, Any], manifest: Mapping[str, Any
         "configuration_sha256": result["configuration_sha256"],
         "method_config_sha256": result["method_config_sha256"],
         "method_providers": result["method_providers"],
+        "common_input_hashes": result["common_input_hashes"],
+        "integration_sources": manifest.get("integration_sources", {}),
         "source_code_revision": result["source_code_revision"],
         "source_tree_sha256": result["source_tree_sha256"],
         "working_tree_dirty": result["working_tree_dirty"],
@@ -1144,7 +1443,9 @@ def write_replay_artifacts(result: Mapping[str, Any], manifest: Mapping[str, Any
     }
     (output / "manifest.json").write_text(json.dumps(run_manifest, ensure_ascii=False,
         indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")
-    summaries = {key: {"status": value["status"], **value["summary"]}
+    summaries = {key: {"status": value["status"],
+                       "common_input_hashes": value["common_input_hashes"],
+                       **value["summary"]}
                  for key, value in result["results"].items()}
     (output / "summary.json").write_text(json.dumps({
         "schema_version": SCHEMA_VERSION,
@@ -1158,6 +1459,8 @@ def write_replay_artifacts(result: Mapping[str, Any], manifest: Mapping[str, Any
         "working_tree_dirty": result["working_tree_dirty"],
         "method_config_sha256": result["method_config_sha256"],
         "method_providers": result["method_providers"],
+        "common_input_hashes": result["common_input_hashes"],
+        "integration_sources": manifest.get("integration_sources", {}),
         "ranking_authorized": result["ranking_authorized"],
         "results": summaries,
     }, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")

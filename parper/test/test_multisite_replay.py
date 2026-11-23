@@ -167,7 +167,8 @@ class MultiSiteReplayTests(unittest.TestCase):
 
     def test_projected_actions_are_counted_and_tie_lines_are_not_silently_ignored(self):
         def unsafe(context):
-            return {site_id: {"timestamp": context["timestamp"],
+            return {site_id: {"site_id": site_id,
+                              "timestamp": context["timestamp"],
                               "price_yuan_per_kwh": 3.0,
                               "requested_ev_kw": 999.0,
                               "storage_kw": 999.0}
@@ -179,20 +180,156 @@ class MultiSiteReplayTests(unittest.TestCase):
                             for site in result["results"]["unsafe"]["steps"][0]["site_ledgers"].values()))
         changed = copy.deepcopy(self.manifest)
         changed["tie_lines"] = [{"line_id": "L1", "from_site": "SYN-01", "to_site": "SYN-02",
-                                 "import_limit_kw": 10.0, "export_limit_kw": 10.0}]
+                                 "import_limit_kw": 4.0, "export_limit_kw": 5.0,
+                                 "loss_fraction": 0.05, "source": "synthetic-test"}]
         changed["input_sha256"] = input_sha256(changed)
-        with self.assertRaisesRegex(ReplayContractError, "does not yet model tie_lines"):
-            run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+        linked = run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+        self.assertEqual(linked["results"]["fixed-price"]["status"], "completed")
+        self.assertEqual(linked["results"]["fixed-price"]["steps"][0]["tie_line_flows"]["L1"]["executed_flow_kw"], 0.0)
+
+    def _network_manifest(self, *, direction):
+        changed = copy.deepcopy(self.manifest)
+        changed["sites"][0]["transformer_import_limit_kw"] = 60.0
+        changed["sites"][1]["transformer_import_limit_kw"] = 60.0
+        changed["tie_lines"] = [{"line_id": "L1", "from_site": "SYN-01", "to_site": "SYN-02",
+                                 "import_limit_kw": 4.0, "export_limit_kw": 5.0,
+                                 "loss_fraction": 0.05, "source": "synthetic-asymmetric-test"}]
+        # Make only the selected sender a surplus site and receiver a deficit
+        # site so physical power balance does not hide the directional rating.
+        sender = 0 if direction == "forward" else 1
+        receiver = 1 - sender
+        for site_index, series in enumerate(changed["series"]):
+            for interval in series["intervals"]:
+                signals = interval["signals"]
+                for name in ("pv_forecast_kw", "wind_forecast_kw", "load_forecast_kw", "ev_forecast_kw"):
+                    signals[name]["value"] = 0.0
+                signals["pv_forecast_kw"]["value"] = 20.0 if site_index == sender else 0.0
+                signals["load_forecast_kw"]["value"] = 20.0 if site_index == receiver else 0.0
+        changed["input_sha256"] = input_sha256(changed)
+        return changed
+
+    def test_asymmetric_tie_ratings_and_lossy_energy_ledger_both_directions(self):
+        for direction, requested, expected_abs in (("forward", 9.0, 5.0), ("reverse", -9.0, 4.0)):
+            with self.subTest(direction=direction):
+                manifest = self._network_manifest(direction=direction)
+                line = manifest["tie_lines"][0]
+
+                def candidate(context):
+                    return {
+                        "status": "ok",
+                        "actions": {site_id: {
+                            "site_id": site_id,
+                            "timestamp": context["timestamp"],
+                            "price_yuan_per_kwh": 1.9,
+                            "requested_ev_kw": 0.0,
+                            "storage_kw": 0.0,
+                        } for site_id in context["forecasts"]},
+                        "tie_line_flows_kw": {"L1": requested},
+                    }
+
+                result = run_paired_replay(manifest, {"candidate": candidate})
+                arm = result["results"]["candidate"]
+                step = arm["steps"][0]
+                flow = step["tie_line_flows"]["L1"]
+                self.assertAlmostEqual(abs(flow["executed_flow_kw"]), expected_abs)
+                self.assertTrue(flow["projected"])
+                self.assertAlmostEqual(flow["loss_kwh"], flow["sent_kwh"] * 0.05)
+                self.assertLess(abs(step["system_ledger"]["energy_residual_kwh"]), LEDGER_TOLERANCE_KWH)
+                for site in step["site_ledgers"].values():
+                    self.assertLess(abs(site["energy_residual_kwh"]), LEDGER_TOLERANCE_KWH)
+                # Positive flow is from->to and uses export_limit; reverse
+                # flow uses import_limit. The asymmetric ratings distinguish them.
+                self.assertEqual(line["export_limit_kw"], 5.0)
+                self.assertEqual(line["import_limit_kw"], 4.0)
+
+    def test_site_transformer_import_limit_is_executed_and_balanced(self):
+        changed = copy.deepcopy(self.manifest)
+        changed["sites"][0]["transformer_import_limit_kw"] = 1.0
+        changed["sites"][1]["transformer_import_limit_kw"] = 60.0
+        for site in changed["series"]:
+            for interval in site["intervals"]:
+                signals = interval["signals"]
+                signals["pv_forecast_kw"]["value"] = 0.0
+                signals["wind_forecast_kw"]["value"] = 0.0
+                signals["load_forecast_kw"]["value"] = 10.0 if site["site_id"] == "SYN-01" else 0.0
+                signals["ev_forecast_kw"]["value"] = 0.0
+        changed["input_sha256"] = input_sha256(changed)
+        result = run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+        step = result["results"]["fixed-price"]["steps"][0]
+        site = step["site_ledgers"]["SYN-01"]
+        self.assertAlmostEqual(site["upstream_import_delivered_kwh"], 0.5)
+        self.assertGreater(site["base_load_unserved_kwh"], 0)
+        self.assertLess(abs(site["energy_residual_kwh"]), LEDGER_TOLERANCE_KWH)
+        self.assertLess(abs(step["system_ledger"]["energy_residual_kwh"]), LEDGER_TOLERANCE_KWH)
+
+    def test_stage2_soc_transition_uses_nominal_capacity_and_preserves_soh(self):
+        changed = build_synthetic_manifest(seed=44, step_count=1)
+        for site in changed["sites"]:
+            site_id = site["site_id"]
+            config = changed["site_configs"][site_id]
+            config["initial_state"].update(soc=0.5, soh=0.8)
+            config["assets"]["eta_charge"] = 1.0
+            config["assets"]["eta_discharge"] = 1.0
+            interval = next(row for row in changed["series"] if row["site_id"] == site_id)["intervals"][0]
+            interval["signals"]["soc"]["value"] = 0.5
+            interval["signals"]["soh"]["value"] = 0.8
+            interval["signals"]["reserve_margin_kwh"]["value"] = 16.0
+
+        def discharge(context):
+            return {site_id: {"site_id": site_id, "timestamp": context["timestamp"],
+                              "price_yuan_per_kwh": 1.9, "requested_ev_kw": 0.0,
+                              "storage_kw": 1.0}
+                    for site_id in context["forecasts"]}
+
+        changed["input_sha256"] = input_sha256(changed)
+        result = run_paired_replay(changed, {"nominal-capacity": discharge})
+        for site in result["results"]["nominal-capacity"]["steps"][0]["site_ledgers"].values():
+            self.assertAlmostEqual(site["final_state"]["soc"], 0.4875)
+            self.assertEqual(site["final_state"]["soh"], 0.8)
+            self.assertEqual(site["degradation_energy_loss_kwh"], 0.0)
+
+    def test_unknown_transformer_and_upstream_ratings_block_replay(self):
+        for target, mutator in (
+            ("transformer", lambda manifest: manifest["sites"][0].update(transformer_import_limit_kw=None)),
+            ("upstream", lambda manifest: manifest.update(upstream_import_limit_kw=None)),
+        ):
+            with self.subTest(target=target):
+                changed = copy.deepcopy(self.manifest)
+                mutator(changed)
+                changed["input_sha256"] = input_sha256(changed)
+                with self.assertRaises(ReplayContractError):
+                    run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+
+    def test_zero_transformer_ratings_disable_import_and_export_with_closed_ledger(self):
+        changed = copy.deepcopy(self.manifest)
+        changed["sites"][0]["transformer_import_limit_kw"] = 0.0
+        changed["sites"][1]["transformer_export_limit_kw"] = 0.0
+        for series in changed["series"]:
+            for interval in series["intervals"]:
+                signals = interval["signals"]
+                for name in ("pv_forecast_kw", "wind_forecast_kw", "load_forecast_kw", "ev_forecast_kw"):
+                    signals[name]["value"] = 0.0
+                if series["site_id"] == "SYN-01":
+                    signals["load_forecast_kw"]["value"] = 10.0
+                else:
+                    signals["pv_forecast_kw"]["value"] = 20.0
+        changed["input_sha256"] = input_sha256(changed)
+        result = run_paired_replay(changed, {"fixed-price": reference_providers()["fixed-price"]})
+        step = result["results"]["fixed-price"]["steps"][0]
+        self.assertGreater(step["site_ledgers"]["SYN-01"]["base_load_unserved_kwh"], 0.0)
+        self.assertAlmostEqual(step["site_ledgers"]["SYN-02"]["transformer_export_kwh"], 0.0)
+        self.assertGreater(step["site_ledgers"]["SYN-02"]["curtailment_kwh"], 0.0)
+        self.assertLess(abs(step["system_ledger"]["energy_residual_kwh"]), LEDGER_TOLERANCE_KWH)
 
     def test_site_strategy_and_coordinator_adapters_consume_the_common_request(self):
         class Strategy:
             def __init__(self):
                 self.calls = []
 
-            def decide(self, site_id, forecast, state, constraints):
-                self.calls.append((forecast[0]["timestamp"], state["soc"],
+            def decide(self, site_id, forecast_window, state, constraints):
+                self.calls.append((forecast_window[0]["timestamp"], state["soc"],
                                    constraints["assets"]["battery_capacity_kwh"]))
-                return {"site_id": site_id, "timestamp": forecast[0]["timestamp"],
+                return {"site_id": site_id, "timestamp": forecast_window[0]["timestamp"],
                         "price_yuan_per_kwh": 1.8, "storage_kw": 0.0}
         strategies = {site_id: Strategy() for site_id in ("SYN-01", "SYN-02")}
         result = run_paired_replay(self.manifest, {"agent": adapt_site_strategies(strategies)})
@@ -208,7 +345,7 @@ class MultiSiteReplayTests(unittest.TestCase):
                         "actions": reference_providers()["fixed-price"](request)}
         coordinator = Coordinator()
         coordinated = run_paired_replay(
-            self.manifest, {"coordinator": adapt_coordinator(coordinator)})
+            self.manifest, {"coordinator": adapt_coordinator(coordinator, request_builder=lambda context: context)})
         self.assertEqual(coordinated["results"]["coordinator"]["steps"][0]["solver_status"],
                          "optimal")
         self.assertEqual(coordinator.last_request["input_payload"]["prediction_horizon_steps"], 1)
