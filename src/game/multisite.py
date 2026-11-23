@@ -6,6 +6,7 @@ load-flow feasibility is implied. Public contract adaptation lives separately.
 from dataclasses import dataclass, replace
 from itertools import combinations
 from time import perf_counter
+from collections.abc import Mapping
 
 import numpy as np
 import pyomo.environ as pyo
@@ -59,7 +60,7 @@ class NetworkInput:
     upstream_export_kw: tuple
     dt_hours: float = 0.5
     service_gap: float = 1.0
-    provenance: str = "synthetic"
+    provenance: object = "synthetic"
 
 
 def validate(case):
@@ -67,8 +68,15 @@ def validate(case):
     ids = [s.site_id for s in case.sites]
     if not n or not ids or len(set(ids)) != len(ids):
         raise ValueError("nonempty horizon and unique site IDs required")
-    if case.provenance not in ("synthetic", "measured", "anonymized"):
-        raise ValueError("explicit provenance required")
+    if isinstance(case.provenance, str):
+        if case.provenance not in ("synthetic", "measured", "anonymized"):
+            raise ValueError("unsupported provenance label")
+    elif (not isinstance(case.provenance, Mapping)
+          or set(case.provenance) != {"data_class", "source"}
+          or case.provenance.get("data_class") not in ("synthetic", "measured", "anonymized")
+          or not isinstance(case.provenance.get("source"), str)
+          or not case.provenance["source"].strip()):
+        raise ValueError("provenance must be an explicit label or frozen data_class/source object")
     def finite(values, label, nonnegative=True):
         a = np.asarray(values, dtype=float)
         if not np.isfinite(a).all() or (nonnegative and (a < 0).any()):
